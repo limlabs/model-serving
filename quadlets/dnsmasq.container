@@ -6,6 +6,7 @@ Wants=network-online.target
 [Container]
 Image=docker.io/jpillora/dnsmasq:latest
 ContainerName=dnsmasq
+PublishPort=5380:8080
 Volume=/var/lib/vllm/dnsmasq/dnsmasq.conf:/etc/dnsmasq.conf:ro
 Environment=HTTP_USER=admin
 Environment=HTTP_PASS=admin

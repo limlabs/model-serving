@@ -6,11 +6,10 @@ Wants=network-online.target
 [Container]
 Image=docker.io/library/nginx:alpine
 ContainerName=nginx-proxy
-PublishPort=443:443
-PublishPort=80:80
 Volume=/var/lib/vllm/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
 Volume=/var/lib/vllm/nginx/conf.d:/etc/nginx/conf.d:ro
 Volume=/var/lib/vllm/nginx/ssl:/etc/nginx/ssl:ro
+Volume=/var/lib/vllm/nginx/dist:/var/lib/vllm/nginx/dist:ro
 PodmanArgs=--network=host
 
 [Service]
