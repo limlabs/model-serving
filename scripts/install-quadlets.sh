@@ -72,12 +72,12 @@ echo ""
 echo "Copying configuration files..."
 
 # Copy nginx configs
-sudo cp ../config/nginx/nginx.conf /var/lib/llm-services/nginx/
-sudo cp ../config/nginx/conf.d/* /var/lib/llm-services/nginx/conf.d/
-sudo cp install-client.sh /var/lib/llm-services/nginx/dist/
+sudo cp "$REPO_ROOT/config/nginx/nginx.conf" /var/lib/llm-services/nginx/
+sudo cp "$REPO_ROOT/config/nginx/conf.d"/* /var/lib/llm-services/nginx/conf.d/
+sudo cp "$SCRIPT_DIR/install-client.sh" /var/lib/llm-services/nginx/dist/
 
 # Copy dnsmasq config
-sudo cp ../config/dnsmasq/dnsmasq.conf /var/lib/llm-services/dnsmasq/
+sudo cp "$REPO_ROOT/config/dnsmasq/dnsmasq.conf" /var/lib/llm-services/dnsmasq/
 
 # Set permissions on config files
 sudo find /var/lib/llm-services/nginx/conf.d -type f -exec chmod 644 {} \;
@@ -134,10 +134,10 @@ sudo mkdir -p /var/lib/nginx-proxy/.config/containers/systemd
 sudo mkdir -p /var/lib/webui/.config/containers/systemd
 sudo mkdir -p /var/lib/dnsmasq-llm/.config/containers/systemd
 
-sudo cp ../quadlets/vllm-qwen.container /var/lib/vllm/.config/containers/systemd/
-sudo cp ../quadlets/nginx-proxy.container /var/lib/nginx-proxy/.config/containers/systemd/
-sudo cp ../quadlets/open-webui.container /var/lib/webui/.config/containers/systemd/
-sudo cp ../quadlets/dnsmasq.container /var/lib/dnsmasq-llm/.config/containers/systemd/
+sudo cp "$REPO_ROOT/quadlets/vllm-qwen.container" /var/lib/vllm/.config/containers/systemd/
+sudo cp "$REPO_ROOT/quadlets/nginx-proxy.container" /var/lib/nginx-proxy/.config/containers/systemd/
+sudo cp "$REPO_ROOT/quadlets/open-webui.container" /var/lib/webui/.config/containers/systemd/
+sudo cp "$REPO_ROOT/quadlets/dnsmasq.container" /var/lib/dnsmasq-llm/.config/containers/systemd/
 
 # Set ownership of quadlet files
 sudo chown -R vllm-user:vllm-user /var/lib/vllm/.config
