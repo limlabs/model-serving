@@ -1,6 +1,29 @@
 #!/bin/bash
 set -e
 
+echo "Configuring system for dnsmasq on port 53..."
+
+# Disable systemd-resolved DNS stub listener to free up port 53
+if systemctl is-active --quiet systemd-resolved; then
+    echo "Disabling systemd-resolved DNS stub listener..."
+
+    # Create resolved.conf.d directory
+    sudo mkdir -p /etc/systemd/resolved.conf.d
+
+    # Disable DNS stub listener
+    cat <<EOF | sudo tee /etc/systemd/resolved.conf.d/disable-stub.conf
+[Resolve]
+DNSStubListener=no
+EOF
+
+    # Restart systemd-resolved
+    sudo systemctl restart systemd-resolved
+
+    # Remove symlink and create real resolv.conf
+    sudo rm -f /etc/resolv.conf
+    sudo ln -sf /run/systemd/resolve/resolv.conf /etc/resolv.conf
+fi
+
 # 1. Create a dedicated user (no login shell, no home directory login)
 if ! id -u vllm-user &>/dev/null; then
     sudo useradd -r -s /usr/sbin/nologin -m -d /var/lib/vllm vllm-user
@@ -101,15 +124,17 @@ echo "Host Tailscale IP: $HOST_IP"
 echo ""
 echo "Next steps:"
 echo "1. Configure Tailscale DNS settings:"
-echo "   - Add nameserver: $HOST_IP"
-echo "   - Add search domain: liminati.internal"
-echo "   OR use Tailscale admin console to set global nameserver"
+echo "   In Tailscale admin console (or tailscale CLI):"
+echo "   - Override local DNS: Enabled"
+echo "   - Nameservers: $HOST_IP"
+echo "   - Search domains: liminati.internal"
 echo ""
 echo "2. Clients can auto-configure with:"
 echo "   curl http://$HOST_IP:8080/install-client.sh | bash -s $HOST_IP"
 echo ""
 echo "Services accessible at:"
-echo "  DNS Server: $HOST_IP:53"
+echo "  DNS Server: $HOST_IP:53 (UDP/TCP)"
+echo "  DNS WebUI:  http://$HOST_IP:5380 (admin/admin)"
 echo "  Web UI:     https://webui.liminati.internal"
 echo "  vLLM API:   https://vllm.liminati.internal"
 echo ""
