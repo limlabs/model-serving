@@ -185,7 +185,37 @@ else
 fi
 
 echo ""
-echo "Starting services..."
+echo "Stopping existing services..."
+
+# Stop user services if running
+for service_user in "vllm-user:vllm-qwen" "webui-user:open-webui"; do
+    user="${service_user%:*}"
+    service="${service_user#*:}"
+    VLLM_UID=$(id -u $user)
+
+    if sudo -u $user XDG_RUNTIME_DIR=/run/user/$VLLM_UID systemctl --user is-active --quiet $service.service 2>/dev/null; then
+        echo "Stopping $service.service (user)..."
+        sudo -u $user XDG_RUNTIME_DIR=/run/user/$VLLM_UID systemctl --user stop $service.service || true
+    fi
+done
+
+# Stop system services if running
+for service in nginx-proxy dnsmasq; do
+    if sudo systemctl is-active --quiet $service.service 2>/dev/null; then
+        echo "Stopping $service.service (system)..."
+        sudo systemctl stop $service.service || true
+    fi
+done
+
+# Clean up any orphaned containers
+echo "Cleaning up orphaned containers..."
+sudo podman rm -f nginx-proxy dnsmasq 2>/dev/null || true
+for user in vllm-user webui-user; do
+    sudo -u $user XDG_RUNTIME_DIR=/run/user/$(id -u $user) podman rm -f vllm-qwen open-webui 2>/dev/null || true
+done
+
+echo ""
+echo "Reloading systemd..."
 
 # Reload systemd for user services
 for user in vllm-user webui-user; do
