@@ -207,12 +207,16 @@ for service in nginx-proxy dnsmasq; do
     fi
 done
 
-# Clean up any orphaned containers
+# Clean up any orphaned containers and processes
 echo "Cleaning up orphaned containers..."
 sudo podman rm -f nginx-proxy dnsmasq 2>/dev/null || true
 for user in vllm-user webui-user; do
     sudo -u $user XDG_RUNTIME_DIR=/run/user/$(id -u $user) podman rm -f vllm-qwen open-webui 2>/dev/null || true
 done
+
+# Kill any orphaned webproc processes from previous dnsmasq runs
+echo "Cleaning up orphaned processes..."
+sudo pkill -9 webproc 2>/dev/null || true
 
 echo ""
 echo "Reloading systemd..."
