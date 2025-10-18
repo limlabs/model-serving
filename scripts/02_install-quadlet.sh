@@ -106,7 +106,7 @@ done
 
 # Generate SSL certificates if they don't exist
 echo ""
-if [ -f /var/lib/vllm/nginx/ssl/liminati.internal.crt ] && [ -f /var/lib/vllm/nginx/ssl/liminati.internal.key ]; then
+if sudo test -f /var/lib/vllm/nginx/ssl/liminati.internal.crt && sudo test -f /var/lib/vllm/nginx/ssl/liminati.internal.key; then
     echo "SSL certificates already exist, skipping generation."
 else
     echo "Generating SSL certificates..."
