@@ -10,6 +10,8 @@ PublishPort=5380:8080
 Volume=/var/lib/llm-services/dnsmasq/dnsmasq.conf:/etc/dnsmasq.conf:ro
 Environment=HTTP_USER=admin
 Environment=HTTP_PASS=admin
+# Use host network to bind to privileged port 53
+# Runs as system service (rootful podman) for DNS server
 Network=host
 
 [Service]
@@ -17,4 +19,4 @@ Restart=always
 TimeoutStartSec=60
 
 [Install]
-WantedBy=default.target
+WantedBy=multi-user.target

@@ -134,22 +134,24 @@ fi
 echo ""
 echo "Installing quadlet files for each service..."
 
-# Install quadlets for each user
+# Install user-level quadlets (rootless podman for vllm and webui)
 sudo mkdir -p /var/lib/vllm/.config/containers/systemd
-sudo mkdir -p /var/lib/nginx-proxy/.config/containers/systemd
 sudo mkdir -p /var/lib/webui/.config/containers/systemd
-sudo mkdir -p /var/lib/dnsmasq-llm/.config/containers/systemd
 
 sudo cp "$REPO_ROOT/quadlets/vllm-qwen.container" /var/lib/vllm/.config/containers/systemd/
-sudo cp "$REPO_ROOT/quadlets/nginx-proxy.container" /var/lib/nginx-proxy/.config/containers/systemd/
 sudo cp "$REPO_ROOT/quadlets/open-webui.container" /var/lib/webui/.config/containers/systemd/
-sudo cp "$REPO_ROOT/quadlets/dnsmasq.container" /var/lib/dnsmasq-llm/.config/containers/systemd/
 
-# Set ownership of quadlet files
+# Set ownership of user quadlet files
 sudo chown -R vllm-user:vllm-user /var/lib/vllm/.config
-sudo chown -R nginx-user:nginx-user /var/lib/nginx-proxy/.config
 sudo chown -R webui-user:webui-user /var/lib/webui/.config
-sudo chown -R dnsmasq-user:dnsmasq-user /var/lib/dnsmasq-llm/.config
+
+# Install system-level quadlets (rootful podman for nginx and dnsmasq - need privileged ports)
+sudo mkdir -p /etc/containers/systemd
+sudo cp "$REPO_ROOT/quadlets/nginx-proxy.container" /etc/containers/systemd/
+sudo cp "$REPO_ROOT/quadlets/dnsmasq.container" /etc/containers/systemd/
+
+echo "✓ Installed user quadlets: vllm-qwen, open-webui"
+echo "✓ Installed system quadlets: nginx-proxy, dnsmasq"
 
 echo ""
 echo "Generating SSL certificates..."
@@ -185,15 +187,19 @@ fi
 echo ""
 echo "Starting services..."
 
-# Start services for each user
-for user in vllm-user webui-user dnsmasq-user nginx-user; do
+# Reload systemd for user services
+for user in vllm-user webui-user; do
     VLLM_UID=$(id -u $user)
     echo "Reloading systemd for $user..."
     sudo -u $user XDG_RUNTIME_DIR=/run/user/$VLLM_UID systemctl --user daemon-reload
 done
 
-# Start each service
-for service_user in "vllm-user:vllm-qwen" "webui-user:open-webui" "dnsmasq-user:dnsmasq" "nginx-user:nginx-proxy"; do
+# Reload systemd for system services
+echo "Reloading system daemon..."
+sudo systemctl daemon-reload
+
+# Start user-level services (rootless podman)
+for service_user in "vllm-user:vllm-qwen" "webui-user:open-webui"; do
     user="${service_user%:*}"
     service="${service_user#*:}"
     VLLM_UID=$(id -u $user)
@@ -207,6 +213,17 @@ for service_user in "vllm-user:vllm-qwen" "webui-user:open-webui" "dnsmasq-user:
     fi
 done
 
+# Start system-level services (rootful podman)
+for service in nginx-proxy dnsmasq; do
+    if sudo systemctl is-active --quiet $service.service 2>/dev/null; then
+        echo "Restarting $service.service (system)..."
+        sudo systemctl restart $service.service
+    else
+        echo "Starting $service.service (system)..."
+        sudo systemctl start $service.service || true
+    fi
+done
+
 echo ""
 echo "=========================================="
 echo "Installation Complete!"
@@ -215,15 +232,16 @@ echo ""
 echo "Host Tailscale IP: $HOST_IP"
 echo ""
 echo "Security Model:"
-echo "  ✓ Each service runs as its own user"
+echo "  ✓ vllm & webui run as rootless podman (user services)"
+echo "  ✓ nginx & dnsmasq run as rootful podman (system services - need privileged ports)"
 echo "  ✓ Shared files use group permissions (llm-services)"
-echo "  ✓ SSL keys only readable by nginx-user"
+echo "  ✓ SSL keys only readable by nginx container"
 echo ""
-echo "Users:"
-echo "  • vllm-user - runs vLLM service"
-echo "  • nginx-user - runs nginx reverse proxy"
-echo "  • webui-user - runs Open WebUI"
-echo "  • dnsmasq-user - runs DNS server"
+echo "Services:"
+echo "  • vllm-qwen (user service - rootless)"
+echo "  • open-webui (user service - rootless)"
+echo "  • nginx-proxy (system service - rootful, ports 80/443/8081)"
+echo "  • dnsmasq (system service - rootful, port 53)"
 echo ""
 echo "Next steps:"
 echo "1. Configure Tailscale DNS:"
@@ -241,8 +259,11 @@ echo "  Web UI:     https://webui.liminati.internal"
 echo "  vLLM API:   https://vllm.liminati.internal"
 echo ""
 echo "Check service status:"
-echo "  sudo -u nginx-user systemctl --user status nginx-proxy"
-echo "  sudo -u vllm-user systemctl --user status vllm-qwen"
-echo "  sudo -u webui-user systemctl --user status open-webui"
-echo "  sudo -u dnsmasq-user systemctl --user status dnsmasq"
+echo "  User services (rootless):"
+echo "    sudo -u vllm-user XDG_RUNTIME_DIR=/run/user/\$(id -u vllm-user) systemctl --user status vllm-qwen"
+echo "    sudo -u webui-user XDG_RUNTIME_DIR=/run/user/\$(id -u webui-user) systemctl --user status open-webui"
+echo ""
+echo "  System services (rootful):"
+echo "    sudo systemctl status nginx-proxy"
+echo "    sudo systemctl status dnsmasq"
 echo ""

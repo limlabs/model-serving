@@ -10,6 +10,8 @@ Volume=/var/lib/llm-services/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
 Volume=/var/lib/llm-services/nginx/conf.d:/etc/nginx/conf.d:ro
 Volume=/var/lib/llm-services/ssl:/etc/nginx/ssl:ro
 Volume=/var/lib/llm-services/nginx/dist:/var/lib/llm-services/nginx/dist:ro
+# Use host network to access vllm/webui on localhost
+# Runs as system service (rootful podman) to bind privileged ports 80/443
 Network=host
 
 [Service]
@@ -17,4 +19,4 @@ Restart=always
 TimeoutStartSec=60
 
 [Install]
-WantedBy=default.target
+WantedBy=multi-user.target
