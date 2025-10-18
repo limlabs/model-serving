@@ -1,0 +1,22 @@
+[Unit]
+Description=DNSmasq Nameserver for liminati.internal
+After=network-online.target
+Wants=network-online.target
+
+[Container]
+Image=docker.io/jpillora/dnsmasq:latest
+ContainerName=dnsmasq
+PublishPort=53:53/udp
+PublishPort=53:53/tcp
+PublishPort=5380:8080
+Volume=/var/lib/vllm/dnsmasq/dnsmasq.conf:/etc/dnsmasq.conf:ro
+Environment=HTTP_USER=admin
+Environment=HTTP_PASS=admin
+PodmanArgs=--cap-add=NET_ADMIN
+
+[Service]
+Restart=always
+TimeoutStartSec=60
+
+[Install]
+WantedBy=default.target
