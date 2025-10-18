@@ -1,10 +1,19 @@
+#!/bin/bash
+set -e
+
 # 1. Create a dedicated user (no login shell, no home directory login)
-sudo useradd -r -s /usr/sbin/nologin -m -d /var/lib/vllm vllm-user
-sudo usermod -aG systemd-journal vllm-use
+if ! id -u vllm-user &>/dev/null; then
+    sudo useradd -r -s /usr/sbin/nologin -m -d /var/lib/vllm vllm-user
+    sudo usermod -aG systemd-journal vllm-user
+fi
 
 # Add subuid/subgid space for vllm-user to pull images
-echo "vllm-user:100000:65536" | sudo tee -a /etc/subuid
-echo "vllm-user:100000:65536" | sudo tee -a /etc/subgid
+if ! grep -q "^vllm-user:" /etc/subuid; then
+    echo "vllm-user:100000:65536" | sudo tee -a /etc/subuid
+fi
+if ! grep -q "^vllm-user:" /etc/subgid; then
+    echo "vllm-user:100000:65536" | sudo tee -a /etc/subgid
+fi
 
 # 2. Enable systemd user services for this user
 sudo loginctl enable-linger vllm-user
@@ -52,14 +61,36 @@ sudo sed -i "s|192.168.0.1|$HOST_IP|g" /var/lib/vllm/dnsmasq/dnsmasq.conf
 sudo chown -R vllm-user:vllm-user /var/lib/vllm
 
 # Restrict user from su/sudo
-echo "vllm-user ALL=(ALL) NOPASSWD: ALL" | sudo tee -a /etc/sudoers.d/vllm-user
-sudo chmod 0440 /etc/sudoers.d/vllm-user
+if [ ! -f /etc/sudoers.d/vllm-user ]; then
+    echo "vllm-user ALL=(ALL) NOPASSWD: ALL" | sudo tee /etc/sudoers.d/vllm-user
+    sudo chmod 0440 /etc/sudoers.d/vllm-user
+fi
 
-sudo -u vllm-user XDG_RUNTIME_DIR=/run/user/$(id -u vllm-user) systemctl --user daemon-reload
-sudo -u vllm-user XDG_RUNTIME_DIR=/run/user/$(id -u vllm-user) systemctl --user start vllm-qwen.service
-sudo -u vllm-user XDG_RUNTIME_DIR=/run/user/$(id -u vllm-user) systemctl --user start open-webui.service
-sudo -u vllm-user XDG_RUNTIME_DIR=/run/user/$(id -u vllm-user) systemctl --user start dnsmasq.service
-sudo -u vllm-user XDG_RUNTIME_DIR=/run/user/$(id -u vllm-user) systemctl --user start nginx-proxy.service
+# Reload systemd and restart services
+VLLM_UID=$(id -u vllm-user)
+sudo -u vllm-user XDG_RUNTIME_DIR=/run/user/$VLLM_UID systemctl --user daemon-reload
+
+# Start or restart services
+for service in vllm-qwen open-webui dnsmasq nginx-proxy; do
+    if sudo -u vllm-user XDG_RUNTIME_DIR=/run/user/$VLLM_UID systemctl --user is-active --quiet $service.service; then
+        echo "Restarting $service.service..."
+        sudo -u vllm-user XDG_RUNTIME_DIR=/run/user/$VLLM_UID systemctl --user restart $service.service
+    else
+        echo "Starting $service.service..."
+        sudo -u vllm-user XDG_RUNTIME_DIR=/run/user/$VLLM_UID systemctl --user start $service.service
+    fi
+done
+
+# Generate SSL certificates if they don't exist
+if [ ! -f /var/lib/vllm/nginx/ssl/liminati.internal.crt ]; then
+    echo ""
+    echo "Generating SSL certificates..."
+    ./03_generate-ssl-cert.sh
+
+    # Restart nginx to load the new certificates
+    echo "Restarting nginx with SSL certificates..."
+    sudo -u vllm-user XDG_RUNTIME_DIR=/run/user/$VLLM_UID systemctl --user restart nginx-proxy.service
+fi
 
 echo ""
 echo "=========================================="
@@ -69,16 +100,12 @@ echo ""
 echo "Host Tailscale IP: $HOST_IP"
 echo ""
 echo "Next steps:"
-echo "1. Run ./03_generate-ssl-cert.sh to create SSL certificates"
-echo "2. Restart nginx after cert generation:"
-echo "   sudo -u vllm-user XDG_RUNTIME_DIR=/run/user/\$(id -u vllm-user) systemctl --user restart nginx-proxy.service"
-echo ""
-echo "3. Configure Tailscale DNS settings:"
+echo "1. Configure Tailscale DNS settings:"
 echo "   - Add nameserver: $HOST_IP"
 echo "   - Add search domain: liminati.internal"
 echo "   OR use Tailscale admin console to set global nameserver"
 echo ""
-echo "4. Clients can auto-configure with:"
+echo "2. Clients can auto-configure with:"
 echo "   curl http://$HOST_IP:8080/install-client.sh | bash -s $HOST_IP"
 echo ""
 echo "Services accessible at:"
