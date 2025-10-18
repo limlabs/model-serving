@@ -1,9 +1,15 @@
 #!/bin/bash
 set -e
 
+# Get the directory where this script is located
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(dirname "$SCRIPT_DIR")"
+
 echo "=========================================="
 echo "Installing LLM Services with User Isolation"
 echo "=========================================="
+echo ""
+echo "Repository root: $REPO_ROOT"
 echo ""
 
 # 1. Set up users and groups
