@@ -236,6 +236,18 @@ done
 echo "Cleaning up orphaned processes..."
 sudo pkill -9 webproc 2>/dev/null || true
 
+# Fix ownership of podman storage directories (in case cleanup created files with wrong ownership)
+echo "Fixing ownership of podman storage..."
+for user in vllm-user webui-user; do
+    homedir=$(getent passwd $user | cut -d: -f6)
+    if [ -d "$homedir/.local" ]; then
+        sudo chown -R $user:$user "$homedir/.local"
+    fi
+    if [ -d "$homedir/.cache" ]; then
+        sudo chown -R $user:$user "$homedir/.cache"
+    fi
+done
+
 echo ""
 echo "Reloading systemd..."
 
