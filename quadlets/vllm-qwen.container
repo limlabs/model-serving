@@ -10,7 +10,7 @@ PublishPort=8000:8000
 Volume=/var/lib/vllm/.cache/huggingface:/root/.cache/huggingface
 AddDevice=nvidia.com/gpu=all
 PodmanArgs=--ipc=host --dns=8.8.8.8
-Exec=--model Qwen/Qwen3-4B-FP8
+Exec=--model Qwen/Qwen3-0.6B
 
 [Service]
 Restart=always
