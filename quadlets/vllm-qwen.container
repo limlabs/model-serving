@@ -1,5 +1,5 @@
 [Unit]
-Description=vLLM OpenAI Server with Qwen3-4B-FP8
+Description=vLLM OpenAI Server
 After=network-online.target
 Wants=network-online.target
 
