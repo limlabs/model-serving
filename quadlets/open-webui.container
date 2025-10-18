@@ -1,0 +1,20 @@
+[Unit]
+Description=Open WebUI for vLLM
+After=network-online.target vllm-qwen.service
+Wants=network-online.target
+Requires=vllm-qwen.service
+
+[Container]
+Image=ghcr.io/open-webui/open-webui:main
+ContainerName=open-webui
+PublishPort=3000:8080
+Volume=open-webui:/app/backend/data
+Environment=OPENAI_API_BASE_URL=http://localhost:8000/v1
+PodmanArgs=--network=host
+
+[Service]
+Restart=always
+TimeoutStartSec=300
+
+[Install]
+WantedBy=default.target

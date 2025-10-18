@@ -1,0 +1,20 @@
+[Unit]
+Description=vLLM OpenAI Server with Qwen3-4B-FP8
+After=network-online.target
+Wants=network-online.target
+
+[Container]
+Image=docker.io/vllm/vllm-openai:latest
+ContainerName=vllm-qwen
+PublishPort=8000:8000
+Volume=/var/lib/vllm/.cache/huggingface:/root/.cache/huggingface
+AddDevice=nvidia.com/gpu=all
+PodmanArgs=--ipc=host --dns=8.8.8.8
+Exec=--model Qwen/Qwen3-4B-FP8
+
+[Service]
+Restart=always
+TimeoutStartSec=900
+
+[Install]
+WantedBy=default.target
