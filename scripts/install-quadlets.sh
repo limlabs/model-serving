@@ -52,6 +52,16 @@ for user_info in "vllm-user:/var/lib/vllm" "nginx-user:/var/lib/nginx-proxy" "we
 
     # Enable systemd user services
     sudo loginctl enable-linger $username
+
+    # Create and set ownership of podman storage directories for user services
+    # (nginx-user and dnsmasq-user use system-level podman, so skip them)
+    if [[ "$username" == "vllm-user" || "$username" == "webui-user" ]]; then
+        sudo mkdir -p $homedir/.local/share/containers/storage
+        sudo mkdir -p $homedir/.cache/containers
+        sudo chown -R $username:$username $homedir/.local
+        sudo chown -R $username:$username $homedir/.cache
+        echo "✓ Initialized podman storage for $username"
+    fi
 done
 
 echo "✓ All users configured"
