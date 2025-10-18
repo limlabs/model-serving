@@ -105,17 +105,16 @@ for service in vllm-qwen open-webui dnsmasq nginx-proxy; do
 done
 
 # Generate SSL certificates if they don't exist
-if [ ! -f /var/lib/vllm/nginx/ssl/liminati.internal.crt ] || [ ! -f /var/lib/vllm/nginx/ssl/liminati.internal.key ]; then
-    echo ""
+echo ""
+if [ -f /var/lib/vllm/nginx/ssl/liminati.internal.crt ] && [ -f /var/lib/vllm/nginx/ssl/liminati.internal.key ]; then
+    echo "SSL certificates already exist, skipping generation."
+else
     echo "Generating SSL certificates..."
     ./03_generate-ssl-cert.sh
 
     # Restart nginx to load the new certificates
     echo "Restarting nginx with SSL certificates..."
     sudo -u vllm-user XDG_RUNTIME_DIR=/run/user/$VLLM_UID systemctl --user restart nginx-proxy.service
-else
-    echo ""
-    echo "SSL certificates already exist, skipping generation."
 fi
 
 echo ""
