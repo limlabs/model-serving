@@ -6,14 +6,41 @@ echo "Installing LLM Services with User Isolation"
 echo "=========================================="
 echo ""
 
-# 1. Run user setup script first
-if [ ! -f ./01_setup-users.sh ]; then
-    echo "Error: 01_setup-users.sh not found"
-    exit 1
+# 1. Set up users and groups
+echo "Setting up dedicated users for each service..."
+
+# Create a shared group for services that need to share files
+if ! getent group llm-services &>/dev/null; then
+    sudo groupadd llm-services
+    echo "✓ Created group: llm-services"
 fi
 
-chmod +x ./01_setup-users.sh
-./01_setup-users.sh
+# Create users for each service
+for user_info in "vllm-user:/var/lib/vllm" "nginx-user:/var/lib/nginx-proxy" "webui-user:/var/lib/webui" "dnsmasq-user:/var/lib/dnsmasq-llm"; do
+    username="${user_info%:*}"
+    homedir="${user_info#*:}"
+
+    if ! id -u $username &>/dev/null; then
+        sudo useradd -r -s /usr/sbin/nologin -m -d $homedir -G llm-services $username
+        echo "✓ Created user: $username"
+    else
+        sudo usermod -aG llm-services $username
+        echo "✓ User $username already exists, added to llm-services group"
+    fi
+
+    # Add subuid/subgid space for rootless podman
+    if ! grep -q "^$username:" /etc/subuid; then
+        echo "$username:$(( 100000 + $(id -u $username) * 65536 )):65536" | sudo tee -a /etc/subuid > /dev/null
+    fi
+    if ! grep -q "^$username:" /etc/subgid; then
+        echo "$username:$(( 100000 + $(id -u $username) * 65536 )):65536" | sudo tee -a /etc/subgid > /dev/null
+    fi
+
+    # Enable systemd user services
+    sudo loginctl enable-linger $username
+done
+
+echo "✓ All users configured"
 
 echo ""
 echo "Creating shared directory structure..."
