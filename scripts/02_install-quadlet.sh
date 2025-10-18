@@ -58,15 +58,6 @@ sudo mkdir -p /var/lib/vllm/nginx/dist
 sudo cp -r ../config/nginx/nginx.conf /var/lib/vllm/nginx/
 sudo cp -r ../config/nginx/conf.d/* /var/lib/vllm/nginx/conf.d/
 sudo cp install-client.sh /var/lib/vllm/nginx/dist/
-sudo chmod +x /var/lib/vllm/nginx/dist/install-client.sh
-
-# Make nginx configs readable by the container
-sudo chmod -R 755 /var/lib/vllm/nginx/conf.d
-sudo chmod 644 /var/lib/vllm/nginx/nginx.conf
-sudo chmod 644 /var/lib/vllm/nginx/conf.d/*
-sudo chmod -R 755 /var/lib/vllm/nginx/dist
-sudo chmod 644 /var/lib/vllm/nginx/dist/*
-sudo chmod +x /var/lib/vllm/nginx/dist/install-client.sh
 
 # 6. Set up dnsmasq configuration
 sudo mkdir -p /var/lib/vllm/dnsmasq
