@@ -22,9 +22,18 @@ if ! getent group llm-services &>/dev/null; then
 fi
 
 # Create users for each service
+# Use fixed, non-overlapping subuid/subgid ranges
+declare -A SUBID_RANGES=(
+    ["vllm-user"]="200000"
+    ["nginx-user"]="265536"
+    ["webui-user"]="331072"
+    ["dnsmasq-user"]="396608"
+)
+
 for user_info in "vllm-user:/var/lib/vllm" "nginx-user:/var/lib/nginx-proxy" "webui-user:/var/lib/webui" "dnsmasq-user:/var/lib/dnsmasq-llm"; do
     username="${user_info%:*}"
     homedir="${user_info#*:}"
+    subid_start="${SUBID_RANGES[$username]}"
 
     if ! id -u $username &>/dev/null; then
         sudo useradd -r -s /usr/sbin/nologin -m -d $homedir -G llm-services $username
@@ -34,13 +43,12 @@ for user_info in "vllm-user:/var/lib/vllm" "nginx-user:/var/lib/nginx-proxy" "we
         echo "✓ User $username already exists, added to llm-services group"
     fi
 
-    # Add subuid/subgid space for rootless podman
-    if ! grep -q "^$username:" /etc/subuid; then
-        echo "$username:$(( 100000 + $(id -u $username) * 65536 )):65536" | sudo tee -a /etc/subuid > /dev/null
-    fi
-    if ! grep -q "^$username:" /etc/subgid; then
-        echo "$username:$(( 100000 + $(id -u $username) * 65536 )):65536" | sudo tee -a /etc/subgid > /dev/null
-    fi
+    # Add subuid/subgid space for rootless podman (remove duplicates first)
+    sudo sed -i "/^$username:/d" /etc/subuid
+    sudo sed -i "/^$username:/d" /etc/subgid
+    echo "$username:$subid_start:65536" | sudo tee -a /etc/subuid > /dev/null
+    echo "$username:$subid_start:65536" | sudo tee -a /etc/subgid > /dev/null
+    echo "✓ Configured subuid/subgid for $username: $subid_start:65536"
 
     # Enable systemd user services
     sudo loginctl enable-linger $username
