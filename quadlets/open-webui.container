@@ -8,9 +8,9 @@ Requires=vllm-qwen.service
 Image=ghcr.io/open-webui/open-webui:main
 ContainerName=open-webui
 PublishPort=3000:8080
-Volume=open-webui:/app/backend/data
+Volume=/var/lib/webui/data:/app/backend/data
 Environment=OPENAI_API_BASE_URL=http://localhost:8000/v1
-PodmanArgs=--network=host
+Network=host
 
 [Service]
 Restart=always

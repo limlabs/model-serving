@@ -1,6 +1,18 @@
 #!/bin/bash
 set -e
 
+echo "Setting up LLM services with proper user isolation..."
+echo ""
+
+# 1. Run user setup script first
+if [ ! -f ./01_setup-users.sh ]; then
+    echo "Error: 01_setup-users.sh not found"
+    exit 1
+fi
+
+./01_setup-users.sh
+
+echo ""
 echo "Configuring system for dnsmasq on port 53..."
 
 # Disable systemd-resolved DNS stub listener to free up port 53
@@ -24,29 +36,15 @@ EOF
     sudo ln -sf /run/systemd/resolve/resolv.conf /etc/resolv.conf
 fi
 
-# 1. Create a dedicated user (no login shell, no home directory login)
-if ! id -u vllm-user &>/dev/null; then
-    sudo useradd -r -s /usr/sbin/nologin -m -d /var/lib/vllm vllm-user
-    sudo usermod -aG systemd-journal vllm-user
-fi
-
-# Add subuid/subgid space for vllm-user to pull images
-if ! grep -q "^vllm-user:" /etc/subuid; then
-    echo "vllm-user:100000:65536" | sudo tee -a /etc/subuid
-fi
-if ! grep -q "^vllm-user:" /etc/subgid; then
-    echo "vllm-user:100000:65536" | sudo tee -a /etc/subgid
-fi
-
-# 2. Enable systemd user services for this user
-sudo loginctl enable-linger vllm-user
-
 # 3. Set up the quadlet directory
-sudo mkdir -p /var/lib/vllm/.config/containers/systemd/user
+sudo mkdir -p /var/lib/vllm/.config/containers/systemd
 sudo cp ../quadlets/vllm-qwen.container /var/lib/vllm/.config/containers/systemd/
 sudo cp ../quadlets/open-webui.container /var/lib/vllm/.config/containers/systemd/
 sudo cp ../quadlets/nginx-proxy.container /var/lib/vllm/.config/containers/systemd/
 sudo cp ../quadlets/dnsmasq.container /var/lib/vllm/.config/containers/systemd/
+
+# Set correct ownership for quadlet files
+sudo chown -R vllm-user:vllm-user /var/lib/vllm/.config
 
 # 4. Create the cache directory
 sudo mkdir -p /var/lib/vllm/.cache/huggingface
@@ -87,12 +85,10 @@ sudo chown -R vllm-user:vllm-user /var/lib/vllm
 sudo chmod 755 /var/lib/vllm/nginx
 sudo chmod 755 /var/lib/vllm/nginx/conf.d
 sudo chmod 755 /var/lib/vllm/nginx/ssl
-sudo chmod 755 /var/lib/vllm/nginx/ssl/dist
 sudo chmod 755 /var/lib/vllm/nginx/dist
 sudo chmod 644 /var/lib/vllm/nginx/nginx.conf
-sudo chmod 644 /var/lib/vllm/nginx/conf.d/*
-sudo chmod 644 /var/lib/vllm/nginx/dist/install-client.sh
-sudo chmod +x /var/lib/vllm/nginx/dist/install-client.sh
+sudo find /var/lib/vllm/nginx/conf.d -type f -exec chmod 644 {} \;
+sudo chmod 755 /var/lib/vllm/nginx/dist/install-client.sh
 
 # Restrict user from su/sudo
 if [ ! -f /etc/sudoers.d/vllm-user ]; then
