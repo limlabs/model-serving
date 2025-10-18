@@ -60,6 +60,14 @@ sudo cp -r ../config/nginx/conf.d/* /var/lib/vllm/nginx/conf.d/
 sudo cp install-client.sh /var/lib/vllm/nginx/dist/
 sudo chmod +x /var/lib/vllm/nginx/dist/install-client.sh
 
+# Make nginx configs readable by the container
+sudo chmod -R 755 /var/lib/vllm/nginx/conf.d
+sudo chmod 644 /var/lib/vllm/nginx/nginx.conf
+sudo chmod 644 /var/lib/vllm/nginx/conf.d/*
+sudo chmod -R 755 /var/lib/vllm/nginx/dist
+sudo chmod 644 /var/lib/vllm/nginx/dist/*
+sudo chmod +x /var/lib/vllm/nginx/dist/install-client.sh
+
 # 6. Set up dnsmasq configuration
 sudo mkdir -p /var/lib/vllm/dnsmasq
 sudo cp ../config/dnsmasq/dnsmasq.conf /var/lib/vllm/dnsmasq/
@@ -81,7 +89,19 @@ fi
 # Update the IP address in dnsmasq.conf to the actual host IP
 sudo sed -i "s|192.168.0.1|$HOST_IP|g" /var/lib/vllm/dnsmasq/dnsmasq.conf
 
+# Set ownership first
 sudo chown -R vllm-user:vllm-user /var/lib/vllm
+
+# Then ensure directories and files are readable for containers
+sudo chmod 755 /var/lib/vllm/nginx
+sudo chmod 755 /var/lib/vllm/nginx/conf.d
+sudo chmod 755 /var/lib/vllm/nginx/ssl
+sudo chmod 755 /var/lib/vllm/nginx/ssl/dist
+sudo chmod 755 /var/lib/vllm/nginx/dist
+sudo chmod 644 /var/lib/vllm/nginx/nginx.conf
+sudo chmod 644 /var/lib/vllm/nginx/conf.d/*
+sudo chmod 644 /var/lib/vllm/nginx/dist/install-client.sh
+sudo chmod +x /var/lib/vllm/nginx/dist/install-client.sh
 
 # Restrict user from su/sudo
 if [ ! -f /etc/sudoers.d/vllm-user ]; then
@@ -89,7 +109,16 @@ if [ ! -f /etc/sudoers.d/vllm-user ]; then
     sudo chmod 0440 /etc/sudoers.d/vllm-user
 fi
 
-# Reload systemd and restart services
+# Generate SSL certificates BEFORE starting nginx
+echo ""
+if sudo test -f /var/lib/vllm/nginx/ssl/liminati.internal.crt && sudo test -f /var/lib/vllm/nginx/ssl/liminati.internal.key; then
+    echo "SSL certificates already exist, skipping generation."
+else
+    echo "Generating SSL certificates..."
+    ./03_generate-ssl-cert.sh
+fi
+
+# Reload systemd and start/restart services
 VLLM_UID=$(id -u vllm-user)
 sudo -u vllm-user XDG_RUNTIME_DIR=/run/user/$VLLM_UID systemctl --user daemon-reload
 
@@ -103,19 +132,6 @@ for service in vllm-qwen open-webui dnsmasq nginx-proxy; do
         sudo -u vllm-user XDG_RUNTIME_DIR=/run/user/$VLLM_UID systemctl --user start $service.service
     fi
 done
-
-# Generate SSL certificates if they don't exist
-echo ""
-if sudo test -f /var/lib/vllm/nginx/ssl/liminati.internal.crt && sudo test -f /var/lib/vllm/nginx/ssl/liminati.internal.key; then
-    echo "SSL certificates already exist, skipping generation."
-else
-    echo "Generating SSL certificates..."
-    ./03_generate-ssl-cert.sh
-
-    # Restart nginx to load the new certificates
-    echo "Restarting nginx with SSL certificates..."
-    sudo -u vllm-user XDG_RUNTIME_DIR=/run/user/$VLLM_UID systemctl --user restart nginx-proxy.service
-fi
 
 echo ""
 echo "=========================================="
