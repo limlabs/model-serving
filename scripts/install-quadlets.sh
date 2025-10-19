@@ -68,7 +68,7 @@ sudo mkdir -p /var/lib/nginx-proxy/{conf.d,dist,ssl/dist}
 sudo mkdir -p /var/lib/dnsmasq-llm
 sudo mkdir -p /var/lib/vllm/.cache/huggingface
 sudo mkdir -p /var/lib/webui/data
-sudo mkdir -p /var/lib/opik/{mysql,clickhouse/{data,logs,config},zookeeper,minio,config}
+sudo mkdir -p /var/lib/opik/{mysql,clickhouse/{data,logs,config},zookeeper/datalog,minio,config}
 
 # Set ownership for each service's directories
 sudo chown -R nginx-user:nginx-user /var/lib/nginx-proxy
@@ -255,19 +255,32 @@ sudo podman rm -f nginx-proxy dnsmasq 2>/dev/null || true
 for user in vllm-user webui-user; do
     sudo -u $user XDG_RUNTIME_DIR=/run/user/$(id -u $user) podman rm -f vllm-qwen open-webui 2>/dev/null || true
 done
-# Clean up Opik pod and containers
-sudo -u opik-user XDG_RUNTIME_DIR=/run/user/$(id -u opik-user) podman pod rm -f opik 2>/dev/null || true
+# Clean up Opik pod and containers (try both old and new pod names for idempotency)
+sudo -u opik-user XDG_RUNTIME_DIR=/run/user/$(id -u opik-user) podman pod rm -f opik opik-infra 2>/dev/null || true
 
 # Kill any orphaned webproc processes from previous dnsmasq runs
 echo "Cleaning up orphaned processes..."
 sudo pkill -9 webproc 2>/dev/null || true
 
-# Remove corrupted temp directories created by podman rm above
-# (podman rm may create temp dirs with wrong ownership when cleaning old containers with mismatched subuid)
-echo "Cleaning up corrupted temp directories..."
+# Clean up corrupted podman storage (idempotent - handles corrupted overlay files)
+# This removes temp directories, db journals, and other corrupted files that can prevent chown from working
+echo "Cleaning up corrupted podman storage..."
 for user in vllm-user webui-user opik-user; do
     homedir=$(getent passwd $user | cut -d: -f6)
+    # Remove corrupted temp directories
     sudo rm -rf "$homedir/.local/share/containers/storage/overlay/tempdirs" 2>/dev/null || true
+    # Remove corrupted overlay directories (these can be recreated by podman)
+    find "$homedir/.local/share/containers/storage/overlay" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | while read dir; do
+        # Only remove if chown would fail (corrupted/missing files)
+        if ! sudo chown -R $user:$user "$dir" 2>/dev/null; then
+            echo "  Removing corrupted overlay directory: $(basename $dir)"
+            sudo rm -rf "$dir" 2>/dev/null || true
+        fi
+    done
+    # Remove corrupted database files
+    sudo rm -f "$homedir/.local/share/containers/storage/db.sql-journal" 2>/dev/null || true
+    sudo rm -f "$homedir/.local/share/containers/storage/db.sql-shm" 2>/dev/null || true
+    sudo rm -f "$homedir/.local/share/containers/storage/db.sql-wal" 2>/dev/null || true
 done
 
 echo ""
@@ -286,14 +299,15 @@ sudo systemctl daemon-reload
 
 # Fix ownership of podman storage directories AFTER daemon-reload
 # (daemon-reload might create files, so fix ownership right before starting services)
+# Skip files that don't exist or can't be accessed (idempotent)
 echo "Fixing ownership of podman storage..."
 for user in vllm-user webui-user opik-user; do
     homedir=$(getent passwd $user | cut -d: -f6)
     if [ -d "$homedir/.local" ]; then
-        sudo chown -R $user:$user "$homedir/.local"
+        sudo chown -R $user:$user "$homedir/.local" 2>/dev/null || true
     fi
     if [ -d "$homedir/.cache" ]; then
-        sudo chown -R $user:$user "$homedir/.cache"
+        sudo chown -R $user:$user "$homedir/.cache" 2>/dev/null || true
     fi
 done
 

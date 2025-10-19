@@ -41,8 +41,21 @@ This is a model serving infrastructure that provides secure, multi-user architec
 ## Key Commands
 
 ### Installation & Setup
+
+**CRITICAL: install-quadlets.sh MUST BE IDEMPOTENT**
+
+The installation script is designed to be run multiple times safely without breaking the system. It MUST:
+- Handle missing files/directories gracefully (don't fail on chown of non-existent files)
+- Clean up corrupted podman storage before fixing ownership
+- Skip operations that would fail due to transient issues
+- Use `|| true` or `2>/dev/null || true` to prevent failures from breaking the entire script
+- Properly stop services before cleanup to avoid file locks
+- Handle both old and new naming conventions (e.g., opik pod vs opik-infra pod)
+
+When modifying this script, always ensure every operation can be safely repeated.
+
 ```bash
-# Full installation (idempotent)
+# Full installation (idempotent - safe to run multiple times)
 ./scripts/install-quadlets.sh
 
 # Client setup on remote machines
@@ -110,17 +123,48 @@ curl -k https://opik.liminati.internal/
 
 ## Development Notes
 
+### Script Idempotency Requirements
+
+**ALL scripts in this repository MUST be idempotent**. This means they can be run multiple times without causing errors or breaking the system.
+
+Key principles:
+1. **Never assume files exist** - Always check before accessing or use `|| true`
+2. **Clean up corrupted state** - Remove broken podman storage, stale locks, etc.
+3. **Handle in-use resources** - Stop services before cleanup, handle locked files
+4. **Suppress non-critical errors** - Use `2>/dev/null || true` for operations that may fail
+5. **Support version transitions** - Handle both old and new naming (e.g., old pod name vs new pod name)
+
+Example idempotent patterns:
+```bash
+# Good - won't fail if file doesn't exist
+sudo chown -R user:user /path 2>/dev/null || true
+
+# Good - creates only if missing
+sudo mkdir -p /path
+
+# Good - removes corrupted files before fixing ownership
+find /path -type f 2>/dev/null | while read f; do
+    sudo chown user:user "$f" 2>/dev/null || sudo rm -f "$f"
+done
+
+# Bad - fails if file is missing
+sudo chown -R user:user /path
+```
+
 ### Adding New Services
 1. Create a dedicated user for the service
 2. Set up directory structure under `/var/lib/<service-name>/`
 3. Create a quadlet file in `quadlets/`
 4. Update nginx configuration if web-accessible
-5. Deploy via `install-quadlets.sh`
+5. Update `install-quadlets.sh` with new user/directories
+6. Ensure all operations are idempotent
+7. Deploy via `install-quadlets.sh`
 
 ### Modifying Existing Services
 - Edit quadlet files in `quadlets/` directory
-- Run `install-quadlets.sh` to deploy changes (idempotent)
+- Run `install-quadlets.sh` to deploy changes (idempotent - safe to run multiple times)
 - Use `systemctl --user daemon-reload` after quadlet changes
+- Test by running `install-quadlets.sh` multiple times in succession
 
 ### SSL Certificates
 - Wildcard cert for `*.liminati.internal`
