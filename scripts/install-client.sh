@@ -46,14 +46,14 @@ detect_os() {
 download_cert() {
     if [ -n "$SERVER_IP" ] && [ ! -f "$CERT_FILE" ]; then
         print_info "Downloading certificate from $SERVER_IP..."
-        curl -f "http://$SERVER_IP:8080/liminati-ca.crt" -o "$CERT_FILE" || {
-            print_error "Failed to download certificate from http://$SERVER_IP:8080/liminati-ca.crt"
+        curl -f "http://$SERVER_IP:8081/liminati-ca.crt" -o "$CERT_FILE" || {
+            print_error "Failed to download certificate from http://$SERVER_IP:8081/liminati-ca.crt"
             exit 1
         }
     elif [ ! -f "$CERT_FILE" ]; then
         print_error "Certificate file not found at $CERT_FILE"
         print_error "Usage: $0 <server-ip>"
-        print_error "Or download manually: curl http://<server-ip>:8080/liminati-ca.crt -o $CERT_FILE"
+        print_error "Or download manually: curl http://<server-ip>:8081/liminati-ca.crt -o $CERT_FILE"
         exit 1
     fi
 }
