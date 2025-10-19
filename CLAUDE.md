@@ -6,6 +6,41 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This is a model serving infrastructure that provides secure, multi-user architecture for running vLLM with nginx reverse proxy, Open WebUI, Opik (LLM observability), and DNS services on a Tailscale network. The system uses rootless Podman containers with systemd quadlets for service management.
 
+## Deployment Workflow
+
+**IMPORTANT: All changes to this repository must be deployed to the remote server `liminati.internal` via SSH and git.**
+
+### Standard Deployment Process
+1. Make changes to configuration files, quadlets, or scripts locally
+2. Commit changes to git with descriptive commit messages
+3. Push to remote repository
+4. SSH to the server and pull the latest changes
+5. Deploy the changes using the appropriate script or systemctl commands
+6. Verify the changes took effect
+
+### Example Workflow
+```bash
+# Local: Make changes and commit
+git add quadlets/opik-frontend.container config/opik/nginx.conf
+git commit -m "fix: update Opik frontend configuration"
+git push
+
+# Remote: Deploy changes
+ssh austin@liminati.internal 'cd ~/model-serving && git pull && sudo -u opik-user cp quadlets/opik-frontend.container /var/lib/opik/.config/containers/systemd/ && sudo -u opik-user XDG_RUNTIME_DIR=/run/user/$(id -u opik-user) systemctl --user daemon-reload && sudo -u opik-user XDG_RUNTIME_DIR=/run/user/$(id -u opik-user) systemctl --user restart opik-frontend'
+```
+
+### SSH Access
+- Server hostname: `liminati.internal` (or `austin@liminati.internal`)
+- Repository location on server: `~/model-serving`
+- All services run as dedicated users (opik-user, vllm-user, webui-user, nginx-user, dnsmasq-user)
+- Use SSH to check logs, restart services, and verify deployments
+
+### Git Workflow
+- Always commit configuration changes before deploying
+- Use descriptive commit messages following conventional commits format
+- Include Claude Code attribution in commit messages
+- Push to remote before pulling on server to ensure consistency
+
 ## Architecture
 
 ### Core Components
