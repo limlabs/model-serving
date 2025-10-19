@@ -15,10 +15,6 @@ Environment=CLICKHOUSE_USER=opik
 Environment=CLICKHOUSE_PASSWORD=opik
 Environment=CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT=1
 PodmanArgs=--ulimit nofile=262144:262144
-HealthCmd=wget --spider -q http://127.0.0.1:8123/ping
-HealthInterval=1s
-HealthTimeout=1s
-HealthRetries=300
 
 [Service]
 Restart=always

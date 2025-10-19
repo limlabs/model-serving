@@ -11,11 +11,6 @@ Volume=/var/lib/opik/minio:/data:Z
 Environment=MINIO_ROOT_USER=THAAIOSFODNN7EXAMPLE
 Environment=MINIO_ROOT_PASSWORD=LESlrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
 Exec=server --console-address ":9090" /data
-HealthCmd=curl -f http://localhost:9000/minio/health/live
-HealthInterval=1s
-HealthTimeout=10s
-HealthRetries=30
-HealthStartPeriod=5s
 
 [Service]
 Restart=always

@@ -14,11 +14,6 @@ Environment=PYTHON_CODE_EXECUTOR_CONTAINERS_NUM=5
 Environment=PYTHON_CODE_EXECUTOR_EXEC_TIMEOUT_IN_SECS=3
 Environment=PYTHON_CODE_EXECUTOR_ALLOW_NETWORK=false
 Environment=OPIK_REVERSE_PROXY_URL=http://localhost:5173/api
-HealthCmd=sh -c "if [ -f /opt/opik-python-backend/src/opik_backend/healthcheck.py ]; then wget --spider --quiet http://127.0.0.1:8000/healthcheck; else exit 0; fi"
-HealthInterval=2s
-HealthTimeout=60s
-HealthRetries=30
-HealthStartPeriod=2s
 
 [Service]
 Restart=always

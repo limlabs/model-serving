@@ -11,10 +11,6 @@ Volume=/var/lib/opik/zookeeper:/bitnami/zookeeper:Z
 Environment=ZOO_MY_ID=1
 Environment=ZOO_SERVERS=opik-zookeeper=opik-zookeeper:2888:3888
 Environment=ALLOW_ANONYMOUS_LOGIN=yes
-HealthCmd=/bin/bash -c "ZOO_HC_TIMEOUT=2 /opt/bitnami/scripts/zookeeper/healthcheck.sh"
-HealthInterval=1s
-HealthTimeout=1s
-HealthRetries=300
 
 [Service]
 Restart=always

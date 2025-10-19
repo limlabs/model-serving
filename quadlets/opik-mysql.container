@@ -12,10 +12,6 @@ Environment=MYSQL_ROOT_PASSWORD=opik
 Environment=MYSQL_DATABASE=opik
 Environment=MYSQL_USER=opik
 Environment=MYSQL_PASSWORD=opik
-HealthCmd=mysqladmin ping -h 127.0.0.1 --silent
-HealthInterval=1s
-HealthTimeout=1s
-HealthRetries=300
 
 [Service]
 Restart=always

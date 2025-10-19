@@ -13,11 +13,6 @@ Environment=OPIK_VERSION=latest
 Environment=ENABLE_OTEL_LOG_EXPORT=false
 Environment=OTEL_COLLECTOR_HOST=otel-collector
 Environment=OTEL_COLLECTOR_PORT=4317
-HealthCmd=curl -f http://localhost:5173
-HealthInterval=1s
-HealthTimeout=30s
-HealthRetries=10
-HealthStartPeriod=1s
 
 [Service]
 Restart=always

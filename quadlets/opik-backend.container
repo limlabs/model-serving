@@ -41,11 +41,6 @@ Environment=PYTHON_EVALUATOR_URL=http://localhost:8000
 Environment=TOGGLE_GUARDRAILS_ENABLED=false
 Environment=TOGGLE_WELCOME_WIZARD_ENABLED=true
 Environment=CORS=false
-HealthCmd=curl -f http://localhost:8080/health-check
-HealthInterval=1s
-HealthTimeout=600s
-HealthRetries=600
-HealthStartPeriod=1s
 
 [Service]
 Restart=always
