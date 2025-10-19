@@ -1,20 +1,20 @@
 <clickhouse>
     <macros>
         <shard>1</shard>
-        <replica>clickhouse</replica>
+        <replica>localhost</replica>
         <cluster>cluster</cluster>
     </macros>
-    
+
     <zookeeper>
         <node>
-            <host>zookeeper</host>
+            <host>localhost</host>
             <port>2181</port>
         </node>
     </zookeeper>
-    
+
     <zookeeper_path>/clickhouse</zookeeper_path>
     <zookeeper_session_timeout_ms>30000</zookeeper_session_timeout_ms>
-    
+
     <distributed_ddl>
         <path>/clickhouse/task_queue/ddl</path>
     </distributed_ddl>
@@ -23,7 +23,7 @@
         <cluster>
         <shard>
             <replica>
-            <host>clickhouse</host>
+            <host>localhost</host>
             <port>9000</port>
             </replica>
         </shard>
