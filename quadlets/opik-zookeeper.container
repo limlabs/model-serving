@@ -5,7 +5,7 @@ Wants=network-online.target
 
 [Container]
 Image=docker.io/library/zookeeper:3.9
-ContainerName=opik-zookeeper
+ContainerName=zookeeper
 Pod=opik.pod
 Volume=/var/lib/opik/zookeeper:/data
 Volume=/var/lib/opik/zookeeper/datalog:/datalog
