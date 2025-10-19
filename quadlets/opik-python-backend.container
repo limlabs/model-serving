@@ -2,12 +2,11 @@
 Description=Opik Python Backend (Evaluators)
 After=network-online.target
 Wants=network-online.target
-PartOf=opik.service
 
 [Container]
 Image=ghcr.io/comet-ml/opik/opik-python-backend:latest
 ContainerName=opik-python-backend
-Pod=opik.pod
+Pod=opik
 Environment=OPIK_VERSION=latest
 Environment=PYTHON_CODE_EXECUTOR_IMAGE_TAG=latest
 Environment=PYTHON_CODE_EXECUTOR_STRATEGY=process

@@ -4,7 +4,8 @@
 OPIK_USER="opik-user"
 OPIK_UID=$(id -u $OPIK_USER 2>/dev/null)
 POD_NAME="opik"
-SERVICE_NAME="opik.service"
+POD_SERVICE="opik-pod.service"
+CONTAINERS="mysql redis zookeeper clickhouse minio minio-init backend python-backend frontend"
 
 # Helper function to run commands as opik-user
 run_as_opik() {
@@ -13,8 +14,15 @@ run_as_opik() {
 
 case "$1" in
     status)
-        echo "=== Opik Pod Status ==="
-        run_as_opik "systemctl --user status $SERVICE_NAME"
+        echo "=== Opik Pod Infrastructure ==="
+        run_as_opik "systemctl --user status $POD_SERVICE" || echo "Pod service not active"
+        echo ""
+        echo "=== Opik Container Services ==="
+        for container in $CONTAINERS; do
+            run_as_opik "systemctl --user is-active opik-$container.service" > /dev/null 2>&1 && \
+                echo "  opik-$container: $(run_as_opik "systemctl --user is-active opik-$container.service")" || \
+                echo "  opik-$container: inactive"
+        done
         echo ""
         echo "=== Pod Info ==="
         run_as_opik "podman pod ps --filter name=$POD_NAME"
@@ -38,18 +46,38 @@ case "$1" in
 
     restart)
         echo "Restarting Opik pod..."
-        run_as_opik "systemctl --user restart $SERVICE_NAME"
+        echo "Stopping all containers..."
+        for container in frontend python-backend backend minio-init minio clickhouse zookeeper redis mysql; do
+            run_as_opik "systemctl --user stop opik-$container.service" 2>/dev/null || true
+        done
+        run_as_opik "systemctl --user stop $POD_SERVICE" 2>/dev/null || true
+
+        echo "Starting pod infrastructure..."
+        run_as_opik "systemctl --user start $POD_SERVICE" || true
+
+        echo "Starting all containers..."
+        for container in $CONTAINERS; do
+            run_as_opik "systemctl --user start opik-$container.service" || true
+        done
         echo "Done. Check status with: $0 status"
         ;;
 
     stop)
         echo "Stopping Opik pod..."
-        run_as_opik "systemctl --user stop $SERVICE_NAME"
+        for container in frontend python-backend backend minio-init minio clickhouse zookeeper redis mysql; do
+            echo "  Stopping opik-$container..."
+            run_as_opik "systemctl --user stop opik-$container.service" 2>/dev/null || true
+        done
+        run_as_opik "systemctl --user stop $POD_SERVICE" 2>/dev/null || true
         ;;
 
     start)
         echo "Starting Opik pod..."
-        run_as_opik "systemctl --user start $SERVICE_NAME"
+        run_as_opik "systemctl --user start $POD_SERVICE" || true
+        for container in $CONTAINERS; do
+            echo "  Starting opik-$container..."
+            run_as_opik "systemctl --user start opik-$container.service" || true
+        done
         ;;
 
     health)

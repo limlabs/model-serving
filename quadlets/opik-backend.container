@@ -2,12 +2,11 @@
 Description=Opik Backend API Server
 After=opik-mysql.service opik-clickhouse.service opik-minio.service opik-redis.service
 Wants=network-online.target
-PartOf=opik.service
 
 [Container]
 Image=ghcr.io/comet-ml/opik/opik-backend:latest
 ContainerName=opik-backend
-Pod=opik.pod
+Pod=opik
 Exec=bash -c "./run_db_migrations.sh && ./entrypoint.sh"
 Environment=DOCKER_BUILDKIT=1
 Environment=STATE_DB_PROTOCOL=jdbc:mysql://

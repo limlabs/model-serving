@@ -221,7 +221,7 @@ echo ""
 echo "Stopping existing services..."
 
 # Stop user services if running
-for service_user in "vllm-user:vllm-qwen" "webui-user:open-webui" "opik-user:opik"; do
+for service_user in "vllm-user:vllm-qwen" "webui-user:open-webui"; do
     user="${service_user%:*}"
     service="${service_user#*:}"
     VLLM_UID=$(id -u $user)
@@ -231,6 +231,16 @@ for service_user in "vllm-user:vllm-qwen" "webui-user:open-webui" "opik-user:opi
         sudo -u $user XDG_RUNTIME_DIR=/run/user/$VLLM_UID systemctl --user stop $service.service || true
     fi
 done
+
+# Stop Opik pod containers if running
+echo "Stopping Opik pod containers if running..."
+OPIK_UID=$(id -u opik-user 2>/dev/null) || OPIK_UID=""
+if [ -n "$OPIK_UID" ]; then
+    for container in frontend python-backend backend minio-init minio clickhouse zookeeper redis mysql; do
+        sudo -u opik-user XDG_RUNTIME_DIR=/run/user/$OPIK_UID systemctl --user stop opik-$container.service 2>/dev/null || true
+    done
+    sudo -u opik-user XDG_RUNTIME_DIR=/run/user/$OPIK_UID systemctl --user stop opik-pod.service 2>/dev/null || true
+fi
 
 # Stop system services if running
 for service in nginx-proxy dnsmasq; do
@@ -292,7 +302,7 @@ echo ""
 echo "Starting services..."
 
 # Start user-level services (rootless podman)
-for service_user in "vllm-user:vllm-qwen" "webui-user:open-webui" "opik-user:opik"; do
+for service_user in "vllm-user:vllm-qwen" "webui-user:open-webui"; do
     user="${service_user%:*}"
     service="${service_user#*:}"
     VLLM_UID=$(id -u $user)
@@ -308,6 +318,20 @@ for service_user in "vllm-user:vllm-qwen" "webui-user:open-webui" "opik-user:opi
         echo "Starting $service.service (as $user)..."
         sudo -u $user XDG_RUNTIME_DIR=/run/user/$VLLM_UID systemctl --user start $service.service || true
     fi
+done
+
+# Start Opik pod (requires starting all container services)
+echo "Starting Opik pod containers (as opik-user)..."
+OPIK_UID=$(id -u opik-user)
+sudo chown -R opik-user:opik-user /var/lib/opik/.local 2>/dev/null || true
+
+# Start pod infrastructure first
+sudo -u opik-user XDG_RUNTIME_DIR=/run/user/$OPIK_UID systemctl --user start opik-pod.service || true
+
+# Start all Opik containers
+for container in mysql redis zookeeper clickhouse minio minio-init backend python-backend frontend; do
+    echo "  Starting opik-$container..."
+    sudo -u opik-user XDG_RUNTIME_DIR=/run/user/$OPIK_UID systemctl --user start opik-$container.service || true
 done
 
 # Start system-level services (rootful podman)

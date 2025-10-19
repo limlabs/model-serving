@@ -2,12 +2,11 @@
 Description=Opik MySQL Database
 After=network-online.target
 Wants=network-online.target
-PartOf=opik.service
 
 [Container]
 Image=docker.io/library/mysql:8.4.2
 ContainerName=opik-mysql
-Pod=opik.pod
+Pod=opik
 Volume=/var/lib/opik/mysql:/var/lib/mysql:Z
 Environment=MYSQL_ROOT_PASSWORD=opik
 Environment=MYSQL_DATABASE=opik

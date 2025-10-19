@@ -2,12 +2,11 @@
 Description=Opik ClickHouse Database
 After=network-online.target opik-zookeeper.service
 Wants=network-online.target
-PartOf=opik.service
 
 [Container]
 Image=docker.io/clickhouse/clickhouse-server:24.3.6.48-alpine
 ContainerName=opik-clickhouse
-Pod=opik.pod
+Pod=opik
 Volume=/var/lib/opik/clickhouse/data:/var/lib/clickhouse:Z
 Volume=/var/lib/opik/clickhouse/logs:/var/log/clickhouse-server:Z
 Volume=/var/lib/opik/clickhouse/config:/etc/clickhouse-server/config.d:Z

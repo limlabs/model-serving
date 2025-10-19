@@ -2,12 +2,11 @@
 Description=Opik Redis Cache
 After=network-online.target
 Wants=network-online.target
-PartOf=opik.service
 
 [Container]
 Image=docker.io/library/redis:7.2.4-alpine3.19
 ContainerName=opik-redis
-Pod=opik.pod
+Pod=opik
 Exec=redis-server --requirepass opik
 HealthCmd=nc -z localhost 6379
 HealthInterval=2s
