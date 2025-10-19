@@ -1,0 +1,56 @@
+[Unit]
+Description=Opik Backend API Server
+After=opik-mysql.service opik-clickhouse.service opik-minio.service opik-redis.service
+Wants=network-online.target
+PartOf=opik.service
+
+[Container]
+Image=ghcr.io/comet-ml/opik/opik-backend:latest
+ContainerName=opik-backend
+Pod=opik.pod
+Exec=bash -c "./run_db_migrations.sh && ./entrypoint.sh"
+Environment=DOCKER_BUILDKIT=1
+Environment=STATE_DB_PROTOCOL=jdbc:mysql://
+Environment=STATE_DB_URL=localhost:3306/opik?createDatabaseIfNotExist=true&rewriteBatchedStatements=true
+Environment=STATE_DB_DATABASE_NAME=opik
+Environment=STATE_DB_USER=opik
+Environment=STATE_DB_PASS=opik
+Environment=ANALYTICS_DB_MIGRATIONS_URL=jdbc:clickhouse://localhost:8123
+Environment=ANALYTICS_DB_MIGRATIONS_USER=opik
+Environment=ANALYTICS_DB_MIGRATIONS_PASS=opik
+Environment=ANALYTICS_DB_PROTOCOL=HTTP
+Environment=ANALYTICS_DB_HOST=localhost
+Environment=ANALYTICS_DB_PORT=8123
+Environment=ANALYTICS_DB_DATABASE_NAME=opik
+Environment=ANALYTICS_DB_USERNAME=opik
+Environment=ANALYTICS_DB_PASS=opik
+Environment=JAVA_OPTS=-Dliquibase.propertySubstitutionEnabled=true -XX:+UseG1GC -XX:MaxRAMPercentage=80.0
+Environment=REDIS_URL=redis://:opik@localhost:6379/
+Environment=OPIK_OTEL_SDK_ENABLED=false
+Environment=OTEL_VERSION=2.16.0
+Environment=OTEL_PROPAGATORS=tracecontext,baggage,b3
+Environment=OTEL_EXPERIMENTAL_EXPORTER_OTLP_RETRY_ENABLED=true
+Environment=OTEL_EXPORTER_OTLP_METRICS_DEFAULT_HISTOGRAM_AGGREGATION=BASE2_EXPONENTIAL_BUCKET_HISTOGRAM
+Environment=OTEL_EXPERIMENTAL_RESOURCE_DISABLED_KEYS=process.command_args
+Environment=OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE=delta
+Environment=OPIK_USAGE_REPORT_ENABLED=true
+Environment=AWS_ACCESS_KEY_ID=THAAIOSFODNN7EXAMPLE
+Environment=AWS_SECRET_ACCESS_KEY=LESlrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+Environment=IS_MINIO=true
+Environment=S3_URL=http://localhost:9000
+Environment=PYTHON_EVALUATOR_URL=http://localhost:8000
+Environment=TOGGLE_GUARDRAILS_ENABLED=false
+Environment=TOGGLE_WELCOME_WIZARD_ENABLED=true
+Environment=CORS=false
+HealthCmd=curl -f http://localhost:8080/health-check
+HealthInterval=1s
+HealthTimeout=600s
+HealthRetries=600
+HealthStartPeriod=1s
+
+[Service]
+Restart=always
+TimeoutStartSec=900
+
+[Install]
+WantedBy=default.target

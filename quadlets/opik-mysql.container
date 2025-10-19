@@ -1,0 +1,26 @@
+[Unit]
+Description=Opik MySQL Database
+After=network-online.target
+Wants=network-online.target
+PartOf=opik.service
+
+[Container]
+Image=docker.io/library/mysql:8.4.2
+ContainerName=opik-mysql
+Pod=opik.pod
+Volume=/var/lib/opik/mysql:/var/lib/mysql:Z
+Environment=MYSQL_ROOT_PASSWORD=opik
+Environment=MYSQL_DATABASE=opik
+Environment=MYSQL_USER=opik
+Environment=MYSQL_PASSWORD=opik
+HealthCmd=mysqladmin ping -h 127.0.0.1 --silent
+HealthInterval=1s
+HealthTimeout=1s
+HealthRetries=300
+
+[Service]
+Restart=always
+TimeoutStartSec=600
+
+[Install]
+WantedBy=default.target

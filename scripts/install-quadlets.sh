@@ -22,9 +22,10 @@ declare -A SUBID_RANGES=(
     ["nginx-user"]="265536"
     ["webui-user"]="331072"
     ["dnsmasq-user"]="396608"
+    ["opik-user"]="462144"
 )
 
-for user_info in "vllm-user:/var/lib/vllm" "nginx-user:/var/lib/nginx-proxy" "webui-user:/var/lib/webui" "dnsmasq-user:/var/lib/dnsmasq-llm"; do
+for user_info in "vllm-user:/var/lib/vllm" "nginx-user:/var/lib/nginx-proxy" "webui-user:/var/lib/webui" "dnsmasq-user:/var/lib/dnsmasq-llm" "opik-user:/var/lib/opik"; do
     username="${user_info%:*}"
     homedir="${user_info#*:}"
     subid_start="${SUBID_RANGES[$username]}"
@@ -48,7 +49,7 @@ for user_info in "vllm-user:/var/lib/vllm" "nginx-user:/var/lib/nginx-proxy" "we
 
     # Create and set ownership of podman storage directories for user services
     # (nginx-user and dnsmasq-user use system-level podman, so skip them)
-    if [[ "$username" == "vllm-user" || "$username" == "webui-user" ]]; then
+    if [[ "$username" == "vllm-user" || "$username" == "webui-user" || "$username" == "opik-user" ]]; then
         sudo mkdir -p $homedir/.local/share/containers/storage
         sudo mkdir -p $homedir/.cache/containers
         sudo chown -R $username:$username $homedir/.local
@@ -67,12 +68,14 @@ sudo mkdir -p /var/lib/nginx-proxy/{conf.d,dist,ssl/dist}
 sudo mkdir -p /var/lib/dnsmasq-llm
 sudo mkdir -p /var/lib/vllm/.cache/huggingface
 sudo mkdir -p /var/lib/webui/data
+sudo mkdir -p /var/lib/opik/{mysql,clickhouse/{data,logs,config},zookeeper,minio,config}
 
 # Set ownership for each service's directories
 sudo chown -R nginx-user:nginx-user /var/lib/nginx-proxy
 sudo chown -R dnsmasq-user:dnsmasq-user /var/lib/dnsmasq-llm
 sudo chown -R vllm-user:vllm-user /var/lib/vllm
 sudo chown -R webui-user:webui-user /var/lib/webui
+sudo chown -R opik-user:opik-user /var/lib/opik
 
 echo ""
 echo "Copying configuration files..."
@@ -85,6 +88,11 @@ sudo cp "$SCRIPT_DIR/install-client.sh" /var/lib/nginx-proxy/dist/
 # Copy dnsmasq config
 sudo cp "$REPO_ROOT/config/dnsmasq/dnsmasq.conf" /var/lib/dnsmasq-llm/
 
+# Copy Opik configs
+sudo cp "$REPO_ROOT/config/opik/nginx_default_local.conf" /var/lib/opik/config/
+sudo cp "$REPO_ROOT/config/opik/fluent-bit.conf" /var/lib/opik/config/
+sudo cp "$REPO_ROOT/config/opik/additional_config.xml" /var/lib/opik/clickhouse/config/
+
 # Set permissions and ownership on config files
 sudo find /var/lib/nginx-proxy/conf.d -type f -exec chmod 644 {} \;
 sudo chmod 644 /var/lib/nginx-proxy/nginx.conf
@@ -93,6 +101,10 @@ sudo chown -R nginx-user:nginx-user /var/lib/nginx-proxy
 
 sudo chmod 644 /var/lib/dnsmasq-llm/dnsmasq.conf
 sudo chown -R dnsmasq-user:dnsmasq-user /var/lib/dnsmasq-llm
+
+sudo chmod 644 /var/lib/opik/config/*
+sudo chmod 644 /var/lib/opik/clickhouse/config/*
+sudo chown -R opik-user:opik-user /var/lib/opik
 
 echo ""
 echo "Detecting Tailscale IP..."
@@ -132,23 +144,37 @@ fi
 echo ""
 echo "Installing quadlet files for each service..."
 
-# Install user-level quadlets (rootless podman for vllm and webui)
+# Install user-level quadlets (rootless podman for vllm, webui, and opik)
 sudo mkdir -p /var/lib/vllm/.config/containers/systemd
 sudo mkdir -p /var/lib/webui/.config/containers/systemd
+sudo mkdir -p /var/lib/opik/.config/containers/systemd
 
 sudo cp "$REPO_ROOT/quadlets/vllm-qwen.container" /var/lib/vllm/.config/containers/systemd/
 sudo cp "$REPO_ROOT/quadlets/open-webui.container" /var/lib/webui/.config/containers/systemd/
 
+# Copy all Opik quadlets to opik-user's systemd directory
+sudo cp "$REPO_ROOT/quadlets/opik.pod" /var/lib/opik/.config/containers/systemd/
+sudo cp "$REPO_ROOT/quadlets/opik-mysql.container" /var/lib/opik/.config/containers/systemd/
+sudo cp "$REPO_ROOT/quadlets/opik-redis.container" /var/lib/opik/.config/containers/systemd/
+sudo cp "$REPO_ROOT/quadlets/opik-zookeeper.container" /var/lib/opik/.config/containers/systemd/
+sudo cp "$REPO_ROOT/quadlets/opik-clickhouse.container" /var/lib/opik/.config/containers/systemd/
+sudo cp "$REPO_ROOT/quadlets/opik-minio.container" /var/lib/opik/.config/containers/systemd/
+sudo cp "$REPO_ROOT/quadlets/opik-minio-init.container" /var/lib/opik/.config/containers/systemd/
+sudo cp "$REPO_ROOT/quadlets/opik-backend.container" /var/lib/opik/.config/containers/systemd/
+sudo cp "$REPO_ROOT/quadlets/opik-python-backend.container" /var/lib/opik/.config/containers/systemd/
+sudo cp "$REPO_ROOT/quadlets/opik-frontend.container" /var/lib/opik/.config/containers/systemd/
+
 # Set ownership of user quadlet files
 sudo chown -R vllm-user:vllm-user /var/lib/vllm/.config
 sudo chown -R webui-user:webui-user /var/lib/webui/.config
+sudo chown -R opik-user:opik-user /var/lib/opik/.config
 
 # Install system-level quadlets (rootful podman for nginx and dnsmasq - need privileged ports)
 sudo mkdir -p /etc/containers/systemd
 sudo cp "$REPO_ROOT/quadlets/nginx-proxy.container" /etc/containers/systemd/
 sudo cp "$REPO_ROOT/quadlets/dnsmasq.container" /etc/containers/systemd/
 
-echo "✓ Installed user quadlets: vllm-qwen, open-webui"
+echo "✓ Installed user quadlets: vllm-qwen, open-webui, opik (pod with 9 containers)"
 echo "✓ Installed system quadlets: nginx-proxy, dnsmasq"
 
 echo ""
@@ -195,7 +221,7 @@ echo ""
 echo "Stopping existing services..."
 
 # Stop user services if running
-for service_user in "vllm-user:vllm-qwen" "webui-user:open-webui"; do
+for service_user in "vllm-user:vllm-qwen" "webui-user:open-webui" "opik-user:opik"; do
     user="${service_user%:*}"
     service="${service_user#*:}"
     VLLM_UID=$(id -u $user)
@@ -220,6 +246,8 @@ sudo podman rm -f nginx-proxy dnsmasq 2>/dev/null || true
 for user in vllm-user webui-user; do
     sudo -u $user XDG_RUNTIME_DIR=/run/user/$(id -u $user) podman rm -f vllm-qwen open-webui 2>/dev/null || true
 done
+# Clean up Opik pod and containers
+sudo -u opik-user XDG_RUNTIME_DIR=/run/user/$(id -u opik-user) podman pod rm -f opik 2>/dev/null || true
 
 # Kill any orphaned webproc processes from previous dnsmasq runs
 echo "Cleaning up orphaned processes..."
@@ -228,7 +256,7 @@ sudo pkill -9 webproc 2>/dev/null || true
 # Remove corrupted temp directories created by podman rm above
 # (podman rm may create temp dirs with wrong ownership when cleaning old containers with mismatched subuid)
 echo "Cleaning up corrupted temp directories..."
-for user in vllm-user webui-user; do
+for user in vllm-user webui-user opik-user; do
     homedir=$(getent passwd $user | cut -d: -f6)
     sudo rm -rf "$homedir/.local/share/containers/storage/overlay/tempdirs" 2>/dev/null || true
 done
@@ -237,7 +265,7 @@ echo ""
 echo "Reloading systemd..."
 
 # Reload systemd for user services
-for user in vllm-user webui-user; do
+for user in vllm-user webui-user opik-user; do
     VLLM_UID=$(id -u $user)
     echo "Reloading systemd for $user..."
     sudo -u $user XDG_RUNTIME_DIR=/run/user/$VLLM_UID systemctl --user daemon-reload
@@ -250,7 +278,7 @@ sudo systemctl daemon-reload
 # Fix ownership of podman storage directories AFTER daemon-reload
 # (daemon-reload might create files, so fix ownership right before starting services)
 echo "Fixing ownership of podman storage..."
-for user in vllm-user webui-user; do
+for user in vllm-user webui-user opik-user; do
     homedir=$(getent passwd $user | cut -d: -f6)
     if [ -d "$homedir/.local" ]; then
         sudo chown -R $user:$user "$homedir/.local"
@@ -264,7 +292,7 @@ echo ""
 echo "Starting services..."
 
 # Start user-level services (rootless podman)
-for service_user in "vllm-user:vllm-qwen" "webui-user:open-webui"; do
+for service_user in "vllm-user:vllm-qwen" "webui-user:open-webui" "opik-user:opik"; do
     user="${service_user%:*}"
     service="${service_user#*:}"
     VLLM_UID=$(id -u $user)
@@ -301,7 +329,7 @@ echo ""
 echo "Host Tailscale IP: $HOST_IP"
 echo ""
 echo "Security Model:"
-echo "  ✓ vllm & webui run as rootless podman (user services)"
+echo "  ✓ vllm, webui & opik run as rootless podman (user services)"
 echo "  ✓ nginx & dnsmasq run as rootful podman (system services - need privileged ports)"
 echo "  ✓ Each service has its own isolated directory"
 echo "  ✓ SSL keys only readable by nginx-user"
@@ -309,6 +337,7 @@ echo ""
 echo "Services:"
 echo "  • vllm-qwen (user service - rootless)"
 echo "  • open-webui (user service - rootless)"
+echo "  • opik (user service - rootless pod with 9 containers, port 5173)"
 echo "  • nginx-proxy (system service - rootful, ports 80/443/8081)"
 echo "  • dnsmasq (system service - rootful, port 53)"
 echo ""
@@ -326,11 +355,13 @@ echo "  DNS WebUI:  http://$HOST_IP:5380"
 echo "  Installer:  http://$HOST_IP:8081"
 echo "  Web UI:     https://webui.liminati.internal"
 echo "  vLLM API:   https://vllm.liminati.internal"
+echo "  Opik:       https://opik.liminati.internal (or http://$HOST_IP:5173)"
 echo ""
 echo "Check service status:"
 echo "  User services (rootless):"
 echo "    sudo -u vllm-user XDG_RUNTIME_DIR=/run/user/\$(id -u vllm-user) systemctl --user status vllm-qwen"
 echo "    sudo -u webui-user XDG_RUNTIME_DIR=/run/user/\$(id -u webui-user) systemctl --user status open-webui"
+echo "    sudo -u opik-user XDG_RUNTIME_DIR=/run/user/\$(id -u opik-user) systemctl --user status opik"
 echo ""
 echo "  System services (rootful):"
 echo "    sudo systemctl status nginx-proxy"

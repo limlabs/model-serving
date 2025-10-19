@@ -4,13 +4,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Repository Overview
 
-This is a model serving infrastructure that provides secure, multi-user architecture for running vLLM with nginx reverse proxy, Open WebUI, and DNS services on a Tailscale network. The system uses rootless Podman containers with systemd quadlets for service management.
+This is a model serving infrastructure that provides secure, multi-user architecture for running vLLM with nginx reverse proxy, Open WebUI, Opik (LLM observability), and DNS services on a Tailscale network. The system uses rootless Podman containers with systemd quadlets for service management.
 
 ## Architecture
 
 ### Core Components
 - **vLLM**: OpenAI-compatible LLM API server (port 8000)
 - **Open WebUI**: ChatGPT-like web interface (port 3000)
+- **Opik**: LLM observability and tracing platform (port 5173)
+  - MySQL, Redis, ClickHouse, Zookeeper, MinIO (infrastructure)
+  - Backend API, Python evaluator backend, Frontend UI
 - **Nginx**: Reverse proxy with SSL termination (ports 80, 443, 8081)
 - **DNSmasq**: DNS server for `*.liminati.internal` domain (port 53, 5380)
 
@@ -24,9 +27,15 @@ This is a model serving infrastructure that provides secure, multi-user architec
 ```
 /var/lib/
 ├── nginx-proxy/     (nginx-user)
-├── dnsmasq-llm/     (dnsmasq-user)  
+├── dnsmasq-llm/     (dnsmasq-user)
 ├── vllm/            (vllm-user)
-└── webui/           (webui-user)
+├── webui/           (webui-user)
+└── opik/            (opik-user)
+    ├── mysql/       (MySQL database)
+    ├── clickhouse/  (ClickHouse analytics DB)
+    ├── zookeeper/   (ZooKeeper for ClickHouse)
+    ├── minio/       (Object storage)
+    └── config/      (Opik configuration files)
 ```
 
 ## Key Commands
@@ -42,7 +51,7 @@ curl http://<tailscale-ip>:8081/install-client.sh | bash -s <tailscale-ip>
 
 ### Service Management
 ```bash
-# Check service status (for any service: nginx-proxy, vllm-qwen, open-webui, dnsmasq)
+# Check service status (for any service: nginx-proxy, vllm-qwen, open-webui, opik, dnsmasq)
 sudo -u <service-user> XDG_RUNTIME_DIR=/run/user/$(id -u <service-user>) systemctl --user status <service-name>
 
 # View logs
@@ -53,18 +62,27 @@ sudo -u <service-user> XDG_RUNTIME_DIR=/run/user/$(id -u <service-user>) systemc
 
 # vLLM-specific management
 ./scripts/vllm-manage.sh status|logs|restart|reconfigure
+
+# Opik-specific management
+./scripts/opik-manage.sh status|logs|restart|health|mysql-shell|clickhouse-shell
 ```
 
 ### Testing & Verification
 ```bash
 # Test DNS resolution
 nslookup webui.liminati.internal <tailscale-ip>
+nslookup opik.liminati.internal <tailscale-ip>
 
 # Check vLLM health
 curl http://localhost:8000/health
 
+# Check Opik health
+curl http://localhost:5173/
+curl http://localhost:8080/health-check
+
 # Check nginx status
 curl -k https://vllm.liminati.internal/health
+curl -k https://opik.liminati.internal/
 ```
 
 ## Important Files
@@ -72,19 +90,23 @@ curl -k https://vllm.liminati.internal/health
 ### Scripts
 - `scripts/install-quadlets.sh` - Main installer, creates users, directories, SSL certs, deploys quadlets
 - `scripts/vllm-manage.sh` - vLLM/WebUI management utility
+- `scripts/opik-manage.sh` - Opik management utility (pod, containers, databases)
 - `scripts/generate-ssl-cert.sh` - SSL certificate generation
 - `scripts/install-client.sh` - Client-side setup script
 
 ### Quadlets (Systemd Service Definitions)
 - `quadlets/vllm-qwen.container` - vLLM container configuration
-- `quadlets/open-webui.container` - Open WebUI container configuration  
+- `quadlets/open-webui.container` - Open WebUI container configuration
 - `quadlets/nginx-proxy.container` - Nginx reverse proxy configuration
 - `quadlets/dnsmasq.container` - DNSmasq DNS server configuration
+- `quadlets/opik.pod` - Opik pod definition (contains all Opik containers)
+- `quadlets/opik-*.container` - Opik service containers (mysql, redis, clickhouse, zookeeper, minio, backend, python-backend, frontend)
 
 ### Configuration
 - `config/nginx/nginx.conf` - Main nginx configuration
-- `config/nginx/conf.d/*.conf` - Virtual host configurations
+- `config/nginx/conf.d/*.conf` - Virtual host configurations (vllm, webui, opik)
 - `config/dnsmasq/dnsmasq.conf` - DNSmasq configuration
+- `config/opik/` - Opik configuration files (nginx, fluent-bit, clickhouse)
 
 ## Development Notes
 
@@ -115,5 +137,71 @@ curl -k https://vllm.liminati.internal/health
 ## Service Access Points
 - Web UI: https://webui.liminati.internal
 - vLLM API: https://vllm.liminati.internal
+- Opik: https://opik.liminati.internal (or http://<tailscale-ip>:5173)
 - DNS Admin: http://<tailscale-ip>:5380
 - Client installer: http://<tailscale-ip>:8081/install-client.sh
+- MinIO Console: http://<tailscale-ip>:9090 (credentials in opik-manage.sh)
+
+## Opik LLM Observability Platform
+
+Opik provides comprehensive LLM observability, including tracing, evaluation, and monitoring for AI applications.
+
+### Architecture
+Opik runs as a **podman pod** with 9 containers:
+1. **opik-mysql** - State database (MySQL 8.4)
+2. **opik-redis** - Cache and message broker
+3. **opik-zookeeper** - Coordination service for ClickHouse
+4. **opik-clickhouse** - Analytics database for traces/metrics
+5. **opik-minio** - Object storage (S3-compatible)
+6. **opik-minio-init** - One-shot bucket initialization
+7. **opik-backend** - Main Java API server (port 8080)
+8. **opik-python-backend** - Python evaluator service (port 8000)
+9. **opik-frontend** - Nginx + React UI (port 5173)
+
+### Management Commands
+```bash
+# Service status and container info
+./scripts/opik-manage.sh status
+
+# View logs for specific container
+./scripts/opik-manage.sh logs backend 200
+./scripts/opik-manage.sh follow frontend
+
+# Check health of all endpoints
+./scripts/opik-manage.sh health
+
+# Database access
+./scripts/opik-manage.sh mysql-shell
+./scripts/opik-manage.sh clickhouse-shell
+./scripts/opik-manage.sh redis-cli
+./scripts/opik-manage.sh minio-console
+
+# Restart entire pod
+./scripts/opik-manage.sh restart
+
+# Reinstall all quadlets
+./scripts/opik-manage.sh reinstall
+```
+
+### Data Persistence
+All Opik data is stored in `/var/lib/opik/`:
+- `mysql/` - MySQL state database
+- `clickhouse/data/` - ClickHouse analytics data
+- `clickhouse/logs/` - ClickHouse logs
+- `clickhouse/config/` - ClickHouse configuration
+- `zookeeper/` - ZooKeeper data
+- `minio/` - Object storage data
+
+### Integration with vLLM
+To trace vLLM requests through Opik:
+1. Configure your application to use Opik's Python SDK
+2. Point traces to `https://opik.liminati.internal/api` or `http://localhost:5173/api`
+3. Use Opik UI to view traces, metrics, and evaluations
+
+### Default Credentials
+- MySQL: `opik/opik` (database: `opik`)
+- Redis: password `opik`
+- ClickHouse: `opik/opik` (database: `opik`)
+- MinIO: `THAAIOSFODNN7EXAMPLE` / `LESlrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY`
+
+**Note:** Change these credentials for production use by modifying the quadlet files.

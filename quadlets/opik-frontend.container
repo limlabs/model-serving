@@ -1,0 +1,28 @@
+[Unit]
+Description=Opik Frontend Web UI
+After=opik-backend.service
+Wants=network-online.target
+PartOf=opik.service
+
+[Container]
+Image=ghcr.io/comet-ml/opik/opik-frontend:latest
+ContainerName=opik-frontend
+Pod=opik.pod
+Volume=/var/lib/opik/config/nginx_default_local.conf:/etc/nginx/conf.d/default.conf:Z
+Volume=/var/lib/opik/config/fluent-bit.conf:/etc/fluent-bit/fluent-bit.conf:Z,ro
+Environment=OPIK_VERSION=latest
+Environment=ENABLE_OTEL_LOG_EXPORT=false
+Environment=OTEL_COLLECTOR_HOST=otel-collector
+Environment=OTEL_COLLECTOR_PORT=4317
+HealthCmd=curl -f http://localhost:5173
+HealthInterval=1s
+HealthTimeout=30s
+HealthRetries=10
+HealthStartPeriod=1s
+
+[Service]
+Restart=always
+TimeoutStartSec=300
+
+[Install]
+WantedBy=default.target
