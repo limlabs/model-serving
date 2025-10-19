@@ -7,7 +7,8 @@ Wants=opik-minio.service
 Image=docker.io/minio/mc:RELEASE.2025-03-12T17-29-24Z
 ContainerName=opik-minio-init
 Pod=opik.pod
-Exec=/bin/sh -c "sleep 10 && /usr/bin/mc alias set s3 http://localhost:9000 THAAIOSFODNN7EXAMPLE LESlrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY --api S3v4 && /usr/bin/mc mb --ignore-existing s3/public && /usr/bin/mc anonymous set download s3/public/"
+PodmanArgs=--entrypoint /bin/sh
+Exec=-c "sleep 10 && /usr/bin/mc alias set s3 http://localhost:9000 THAAIOSFODNN7EXAMPLE LESlrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY --api S3v4 && /usr/bin/mc mb --ignore-existing s3/public && /usr/bin/mc anonymous set download s3/public/"
 
 [Service]
 Type=oneshot
