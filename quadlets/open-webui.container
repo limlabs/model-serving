@@ -1,8 +1,7 @@
 [Unit]
 Description=Open WebUI for vLLM
-After=network-online.target vllm-qwen.service
+After=network-online.target
 Wants=network-online.target
-Requires=vllm-qwen.service
 
 [Container]
 Image=ghcr.io/open-webui/open-webui:main
