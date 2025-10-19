@@ -63,6 +63,34 @@ install_cert_macos() {
     print_info "Installing certificate to macOS System Keychain..."
     sudo security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain "$CERT_FILE"
     print_info "✓ Certificate installed successfully"
+
+    # Configure Python to use the certificate
+    print_info "Configuring Python SSL..."
+
+    # Add SSL_CERT_FILE to shell profiles
+    for profile in ~/.zshrc ~/.bashrc ~/.bash_profile; do
+        if [ -f "$profile" ]; then
+            # Check if already configured
+            if grep -q "SSL_CERT_FILE.*liminati-ca.crt" "$profile" 2>/dev/null; then
+                continue
+            fi
+
+            # Try to write to the file, skip if permission denied
+            if [ -w "$profile" ]; then
+                echo "" >> "$profile"
+                echo "# Liminati.internal SSL certificate for Python" >> "$profile"
+                echo "export SSL_CERT_FILE=\"$CERT_FILE\"" >> "$profile"
+                print_info "  Added SSL_CERT_FILE to $profile"
+            else
+                print_warn "  Skipping $profile (no write permission)"
+            fi
+        fi
+    done
+
+    # For immediate effect in current session
+    export SSL_CERT_FILE="$CERT_FILE"
+
+    print_info "✓ Python SSL configured (restart terminal to apply)"
 }
 
 # Install certificate on Ubuntu/Debian
@@ -224,15 +252,20 @@ main() {
     print_info "Installation complete!"
     print_info "================================================"
     echo ""
+    print_info "IMPORTANT: Restart your terminal for Python SSL to work!"
+    echo ""
     print_info "You can now access services:"
     print_info "  • Web UI:   https://webui.liminati.internal"
     print_info "  • vLLM API: https://vllm.liminati.internal"
+    print_info "  • Opik:     https://opik.liminati.internal"
     echo ""
     print_info "Test DNS resolution:"
     print_info "  nslookup webui.liminati.internal"
     echo ""
     print_info "Test HTTPS connection:"
     print_info "  curl https://webui.liminati.internal"
+    echo ""
+    print_info "For Python/Opik to work, start a NEW terminal session!"
     echo ""
 }
 
