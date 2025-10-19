@@ -6,10 +6,10 @@ Wants=network-online.target
 [Container]
 Image=docker.io/vllm/vllm-openai:latest
 ContainerName=vllm-qwen
-PublishPort=8000:8000
 Volume=/var/lib/vllm/.cache/huggingface:/root/.cache/huggingface
 AddDevice=nvidia.com/gpu=all
 PodmanArgs=--ipc=host --dns=8.8.8.8
+Network=host
 Exec=--model Qwen/Qwen3-0.6B
 
 [Service]
