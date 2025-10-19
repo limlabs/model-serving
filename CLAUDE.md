@@ -155,10 +155,11 @@ sudo chown -R user:user /path
 1. Create a dedicated user for the service
 2. Set up directory structure under `/var/lib/<service-name>/`
 3. Create a quadlet file in `quadlets/`
-4. Update nginx configuration if web-accessible
-5. Update `install-quadlets.sh` with new user/directories
-6. Ensure all operations are idempotent
-7. Deploy via `install-quadlets.sh`
+4. **Add DNS record** to `config/dnsmasq/dnsmasq.conf` if the service needs a friendly hostname
+5. Update nginx configuration if web-accessible (add virtual host in `config/nginx/conf.d/`)
+6. Update `install-quadlets.sh` with new user/directories
+7. Ensure all operations are idempotent
+8. Deploy via `install-quadlets.sh`
 
 ### Modifying Existing Services
 - Edit quadlet files in `quadlets/` directory
