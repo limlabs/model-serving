@@ -68,7 +68,7 @@ sudo mkdir -p /var/lib/nginx-proxy/{conf.d,dist,ssl/dist}
 sudo mkdir -p /var/lib/dnsmasq-llm
 sudo mkdir -p /var/lib/vllm/.cache/huggingface
 sudo mkdir -p /var/lib/webui/data
-sudo mkdir -p /var/lib/opik/{mysql,clickhouse/{data,logs,config},zookeeper/datalog,minio,config,frontend-tmp}
+sudo mkdir -p /var/lib/opik/{mysql,clickhouse/{data,logs,config},zookeeper/datalog,zookeeper-config,minio,config,frontend-tmp}
 
 # Set ownership for each service's directories
 sudo chown -R nginx-user:nginx-user /var/lib/nginx-proxy
@@ -153,7 +153,7 @@ sudo cp "$REPO_ROOT/quadlets/vllm-qwen.container" /var/lib/vllm/.config/containe
 sudo cp "$REPO_ROOT/quadlets/open-webui.container" /var/lib/webui/.config/containers/systemd/
 
 # Copy all Opik quadlets to opik-user's systemd directory
-sudo cp "$REPO_ROOT/quadlets/opik.pod" /var/lib/opik/.config/containers/systemd/
+sudo cp "$REPO_ROOT/quadlets/opik-network.network" /var/lib/opik/.config/containers/systemd/
 sudo cp "$REPO_ROOT/quadlets/opik-mysql.container" /var/lib/opik/.config/containers/systemd/
 sudo cp "$REPO_ROOT/quadlets/opik-redis.container" /var/lib/opik/.config/containers/systemd/
 sudo cp "$REPO_ROOT/quadlets/opik-zookeeper.container" /var/lib/opik/.config/containers/systemd/
