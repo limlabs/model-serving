@@ -1,12 +1,13 @@
 [Unit]
 Description=Opik Zookeeper for ClickHouse
-After=network-online.target
+After=network-online.target opik-network.service
 Wants=network-online.target
 
 [Container]
 Image=docker.io/library/zookeeper:3.9
 ContainerName=zookeeper
-Pod=opik.pod
+HostName=zookeeper
+Network=opik-network.network
 Volume=/var/lib/opik/zookeeper:/data
 Volume=/var/lib/opik/zookeeper/datalog:/datalog
 Volume=/var/lib/opik/zookeeper-config/zoo.cfg:/conf/zoo.cfg:ro

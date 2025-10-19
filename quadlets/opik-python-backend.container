@@ -1,19 +1,20 @@
 [Unit]
 Description=Opik Python Backend (Evaluators)
-After=network-online.target
+After=network-online.target opik-network.service
 Wants=network-online.target
 
 [Container]
 Image=ghcr.io/comet-ml/opik/opik-python-backend:latest
-ContainerName=opik-python-backend
-Pod=opik.pod
+ContainerName=python-backend
+HostName=python-backend
+Network=opik-network.network
 Environment=OPIK_VERSION=latest
 Environment=PYTHON_CODE_EXECUTOR_IMAGE_TAG=latest
 Environment=PYTHON_CODE_EXECUTOR_STRATEGY=process
 Environment=PYTHON_CODE_EXECUTOR_CONTAINERS_NUM=5
 Environment=PYTHON_CODE_EXECUTOR_EXEC_TIMEOUT_IN_SECS=3
 Environment=PYTHON_CODE_EXECUTOR_ALLOW_NETWORK=false
-Environment=OPIK_REVERSE_PROXY_URL=http://localhost:5173/api
+Environment=OPIK_REVERSE_PROXY_URL=http://frontend:5173/api
 
 [Service]
 Restart=always

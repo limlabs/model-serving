@@ -1,12 +1,13 @@
 [Unit]
 Description=Opik Redis Cache
-After=network-online.target
+After=network-online.target opik-network.service
 Wants=network-online.target
 
 [Container]
 Image=docker.io/library/redis:7.2.4-alpine3.19
-ContainerName=opik-redis
-Pod=opik.pod
+ContainerName=redis
+HostName=redis
+Network=opik-network.network
 Exec=redis-server --requirepass opik
 
 [Service]

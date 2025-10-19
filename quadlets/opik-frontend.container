@@ -1,12 +1,14 @@
 [Unit]
 Description=Opik Frontend Web UI
-After=opik-backend.service
+After=opik-backend.service opik-network.service
 Wants=network-online.target
 
 [Container]
 Image=ghcr.io/comet-ml/opik/opik-frontend:latest
-ContainerName=opik-frontend
-Pod=opik.pod
+ContainerName=frontend
+HostName=frontend
+Network=opik-network.network
+PublishPort=5173:5173
 Volume=/var/lib/opik/config/nginx.conf:/etc/nginx/nginx.conf
 Volume=/var/lib/opik/config/fluent-bit.conf:/etc/fluent-bit/fluent-bit.conf:ro
 Environment=OPIK_VERSION=latest
