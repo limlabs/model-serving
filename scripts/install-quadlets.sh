@@ -173,11 +173,15 @@ else
         -addext "subjectAltName=DNS:*.liminati.internal,DNS:liminati.internal"
 
     sudo cp "$SSL_DIR/liminati.internal.crt" "$DIST_DIR/liminati-ca.crt"
+    # Also copy to installer dist directory for easy download
+    sudo cp "$SSL_DIR/liminati.internal.crt" /var/lib/nginx-proxy/dist/liminati-ca.crt
 
     sudo chown -R nginx-user:nginx-user "$SSL_DIR"
+    sudo chown nginx-user:nginx-user /var/lib/nginx-proxy/dist/liminati-ca.crt
     sudo chmod 640 "$SSL_DIR/liminati.internal.key"
     sudo chmod 644 "$SSL_DIR/liminati.internal.crt"
     sudo chmod 644 "$DIST_DIR/liminati-ca.crt"
+    sudo chmod 644 /var/lib/nginx-proxy/dist/liminati-ca.crt
 
     echo "✓ SSL certificates generated"
 fi
