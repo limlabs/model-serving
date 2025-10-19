@@ -6,10 +6,10 @@ Wants=network-online.target
 [Container]
 Image=docker.io/library/nginx:alpine
 ContainerName=nginx-proxy
-Volume=/var/lib/llm-services/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-Volume=/var/lib/llm-services/nginx/conf.d:/etc/nginx/conf.d:ro
-Volume=/var/lib/llm-services/ssl:/etc/nginx/ssl:ro
-Volume=/var/lib/llm-services/nginx/dist:/var/lib/llm-services/nginx/dist:ro
+Volume=/var/lib/nginx-proxy/nginx.conf:/etc/nginx/nginx.conf:ro
+Volume=/var/lib/nginx-proxy/conf.d:/etc/nginx/conf.d:ro
+Volume=/var/lib/nginx-proxy/ssl:/etc/nginx/ssl:ro
+Volume=/var/lib/nginx-proxy/dist:/var/lib/nginx-proxy/dist:ro
 # Use host network to access vllm/webui on localhost
 # Runs as system service (rootful podman) to bind privileged ports 80/443
 Network=host

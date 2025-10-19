@@ -3,8 +3,8 @@
 
 set -e
 
-SSL_DIR="/var/lib/vllm/nginx/ssl"
-DIST_DIR="/var/lib/vllm/nginx/ssl/dist"
+SSL_DIR="/var/lib/nginx-proxy/ssl"
+DIST_DIR="/var/lib/nginx-proxy/ssl/dist"
 CERT_DAYS=3650  # 10 years
 
 # Create directories
@@ -55,8 +55,8 @@ sudo openssl req -x509 -nodes -days $CERT_DAYS \
     -addext "subjectAltName=DNS:*.liminati.internal,DNS:liminati.internal"
 
 echo "Setting permissions..."
-sudo chown -R vllm-user:vllm-user "$SSL_DIR"
-sudo chmod 600 "$SSL_DIR/liminati.internal.key"
+sudo chown -R nginx-user:nginx-user "$SSL_DIR"
+sudo chmod 640 "$SSL_DIR/liminati.internal.key"
 sudo chmod 644 "$SSL_DIR/liminati.internal.crt"
 
 # Create a copy for client distribution

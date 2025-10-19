@@ -12,14 +12,8 @@ echo ""
 echo "Repository root: $REPO_ROOT"
 echo ""
 
-# 1. Set up users and groups
+# 1. Set up users
 echo "Setting up dedicated users for each service..."
-
-# Create a shared group for services that need to share files
-if ! getent group llm-services &>/dev/null; then
-    sudo groupadd llm-services
-    echo "✓ Created group: llm-services"
-fi
 
 # Create users for each service
 # Use fixed, non-overlapping subuid/subgid ranges
@@ -36,11 +30,10 @@ for user_info in "vllm-user:/var/lib/vllm" "nginx-user:/var/lib/nginx-proxy" "we
     subid_start="${SUBID_RANGES[$username]}"
 
     if ! id -u $username &>/dev/null; then
-        sudo useradd -r -s /usr/sbin/nologin -m -d $homedir -G llm-services $username
+        sudo useradd -r -s /usr/sbin/nologin -m -d $homedir $username
         echo "✓ Created user: $username"
     else
-        sudo usermod -aG llm-services $username
-        echo "✓ User $username already exists, added to llm-services group"
+        echo "✓ User $username already exists"
     fi
 
     # Add subuid/subgid space for rootless podman (remove duplicates first)
@@ -67,52 +60,39 @@ done
 echo "✓ All users configured"
 
 echo ""
-echo "Creating shared directory structure..."
+echo "Creating service directories..."
 
-# Create shared directory structure
-sudo mkdir -p /var/lib/llm-services/{nginx,dnsmasq,ssl}
-sudo mkdir -p /var/lib/llm-services/nginx/{conf.d,dist}
-sudo mkdir -p /var/lib/llm-services/ssl/dist
+# Create service-specific directories
+sudo mkdir -p /var/lib/nginx-proxy/{conf.d,dist,ssl/dist}
+sudo mkdir -p /var/lib/dnsmasq-llm
 sudo mkdir -p /var/lib/vllm/.cache/huggingface
 sudo mkdir -p /var/lib/webui/data
 
-# Set group ownership for shared directories
-sudo chown -R :llm-services /var/lib/llm-services
-sudo chmod -R 2775 /var/lib/llm-services  # setgid bit ensures new files inherit group
-
-# Set specific ownership for each service's private data
-sudo chown -R vllm-user:llm-services /var/lib/vllm
-sudo chown -R webui-user:llm-services /var/lib/webui
-
-# Make shared configs readable by group
-sudo chmod 755 /var/lib/llm-services/nginx
-sudo chmod 755 /var/lib/llm-services/nginx/conf.d
-sudo chmod 755 /var/lib/llm-services/nginx/dist
-sudo chmod 755 /var/lib/llm-services/ssl
-sudo chmod 755 /var/lib/llm-services/ssl/dist
-sudo chmod 755 /var/lib/llm-services/dnsmasq
+# Set ownership for each service's directories
+sudo chown -R nginx-user:nginx-user /var/lib/nginx-proxy
+sudo chown -R dnsmasq-user:dnsmasq-user /var/lib/dnsmasq-llm
+sudo chown -R vllm-user:vllm-user /var/lib/vllm
+sudo chown -R webui-user:webui-user /var/lib/webui
 
 echo ""
 echo "Copying configuration files..."
 
 # Copy nginx configs
-sudo cp "$REPO_ROOT/config/nginx/nginx.conf" /var/lib/llm-services/nginx/
-sudo cp "$REPO_ROOT/config/nginx/conf.d"/* /var/lib/llm-services/nginx/conf.d/
-sudo cp "$SCRIPT_DIR/install-client.sh" /var/lib/llm-services/nginx/dist/
+sudo cp "$REPO_ROOT/config/nginx/nginx.conf" /var/lib/nginx-proxy/
+sudo cp "$REPO_ROOT/config/nginx/conf.d"/* /var/lib/nginx-proxy/conf.d/
+sudo cp "$SCRIPT_DIR/install-client.sh" /var/lib/nginx-proxy/dist/
 
 # Copy dnsmasq config
-sudo cp "$REPO_ROOT/config/dnsmasq/dnsmasq.conf" /var/lib/llm-services/dnsmasq/
+sudo cp "$REPO_ROOT/config/dnsmasq/dnsmasq.conf" /var/lib/dnsmasq-llm/
 
-# Set permissions on config files
-sudo find /var/lib/llm-services/nginx/conf.d -type f -exec chmod 644 {} \;
-sudo chmod 644 /var/lib/llm-services/nginx/nginx.conf
-sudo chmod 755 /var/lib/llm-services/nginx/dist/install-client.sh
-sudo chmod 644 /var/lib/llm-services/dnsmasq/dnsmasq.conf
+# Set permissions and ownership on config files
+sudo find /var/lib/nginx-proxy/conf.d -type f -exec chmod 644 {} \;
+sudo chmod 644 /var/lib/nginx-proxy/nginx.conf
+sudo chmod 755 /var/lib/nginx-proxy/dist/install-client.sh
+sudo chown -R nginx-user:nginx-user /var/lib/nginx-proxy
 
-# Set ownership
-sudo chown -R nginx-user:llm-services /var/lib/llm-services/nginx
-sudo chown -R dnsmasq-user:llm-services /var/lib/llm-services/dnsmasq
-sudo chown -R nginx-user:llm-services /var/lib/llm-services/ssl
+sudo chmod 644 /var/lib/dnsmasq-llm/dnsmasq.conf
+sudo chown -R dnsmasq-user:dnsmasq-user /var/lib/dnsmasq-llm
 
 echo ""
 echo "Detecting Tailscale IP..."
@@ -132,7 +112,7 @@ fi
 echo "Host IP: $HOST_IP"
 
 # Update dnsmasq config with actual IP
-sudo sed -i "s|192.168.0.1|$HOST_IP|g" /var/lib/llm-services/dnsmasq/dnsmasq.conf
+sudo sed -i "s|192.168.0.1|$HOST_IP|g" /var/lib/dnsmasq-llm/dnsmasq.conf
 
 echo ""
 echo "Configuring system for DNS on port 53..."
@@ -175,12 +155,12 @@ echo ""
 echo "Generating SSL certificates..."
 
 # Generate SSL certificates before starting nginx
-if sudo test -f /var/lib/llm-services/ssl/liminati.internal.crt && sudo test -f /var/lib/llm-services/ssl/liminati.internal.key; then
+SSL_DIR="/var/lib/nginx-proxy/ssl"
+DIST_DIR="/var/lib/nginx-proxy/ssl/dist"
+
+if sudo test -f "$SSL_DIR/liminati.internal.crt" && sudo test -f "$SSL_DIR/liminati.internal.key"; then
     echo "SSL certificates already exist, skipping generation."
 else
-    # Update SSL generation script to use new path
-    SSL_DIR="/var/lib/llm-services/ssl"
-    DIST_DIR="/var/lib/llm-services/ssl/dist"
     CERT_DAYS=3650
 
     sudo mkdir -p "$SSL_DIR" "$DIST_DIR"
@@ -194,7 +174,7 @@ else
 
     sudo cp "$SSL_DIR/liminati.internal.crt" "$DIST_DIR/liminati-ca.crt"
 
-    sudo chown -R nginx-user:llm-services "$SSL_DIR"
+    sudo chown -R nginx-user:nginx-user "$SSL_DIR"
     sudo chmod 640 "$SSL_DIR/liminati.internal.key"
     sudo chmod 644 "$SSL_DIR/liminati.internal.crt"
     sudo chmod 644 "$DIST_DIR/liminati-ca.crt"
@@ -314,8 +294,8 @@ echo ""
 echo "Security Model:"
 echo "  ✓ vllm & webui run as rootless podman (user services)"
 echo "  ✓ nginx & dnsmasq run as rootful podman (system services - need privileged ports)"
-echo "  ✓ Shared files use group permissions (llm-services)"
-echo "  ✓ SSL keys only readable by nginx container"
+echo "  ✓ Each service has its own isolated directory"
+echo "  ✓ SSL keys only readable by nginx-user"
 echo ""
 echo "Services:"
 echo "  • vllm-qwen (user service - rootless)"

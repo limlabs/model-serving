@@ -5,8 +5,8 @@ Secure, multi-user architecture for running vLLM with nginx reverse proxy, Open 
 ## Architecture
 
 ### Security Model
-- **User Isolation**: Each service runs as its own unprivileged user
-- **Group Permissions**: Shared files use the `llm-services` group
+- **User Isolation**: Each service runs as its own unprivileged user with dedicated home directory
+- **No Shared Files**: Each service owns and accesses only its own files
 - **Rootless Containers**: All containers run without root privileges
 - **SSL Termination**: Nginx handles HTTPS with self-signed certificates
 
@@ -23,24 +23,23 @@ Secure, multi-user architecture for running vLLM with nginx reverse proxy, Open 
 
 ```
 /var/lib/
-├── llm-services/          # Shared configs (group: llm-services)
-│   ├── nginx/             # Nginx configs (owner: nginx-user)
-│   │   ├── nginx.conf
-│   │   ├── conf.d/
-│   │   └── dist/          # Client installer
-│   ├── ssl/               # SSL certificates (owner: nginx-user)
+├── nginx-proxy/           # Nginx service (owner: nginx-user)
+│   ├── nginx.conf
+│   ├── conf.d/            # Virtual host configs
+│   ├── dist/              # Client installer scripts
+│   ├── ssl/               # SSL certificates
 │   │   ├── liminati.internal.crt
 │   │   ├── liminati.internal.key
 │   │   └── dist/liminati-ca.crt
-│   └── dnsmasq/           # DNSmasq config (owner: dnsmasq-user)
-│       └── dnsmasq.conf
-├── vllm/                  # vLLM private data
-│   └── .cache/huggingface
-├── webui/                 # WebUI private data
-│   └── data/
-├── nginx-proxy/           # Nginx quadlet config
 │   └── .config/containers/systemd/
-├── dnsmasq-llm/           # DNSmasq quadlet config
+├── dnsmasq-llm/           # DNSmasq service (owner: dnsmasq-user)
+│   ├── dnsmasq.conf
+│   └── .config/containers/systemd/
+├── vllm/                  # vLLM service (owner: vllm-user)
+│   ├── .cache/huggingface
+│   └── .config/containers/systemd/
+└── webui/                 # WebUI service (owner: webui-user)
+    ├── data/
     └── .config/containers/systemd/
 ```
 
@@ -154,9 +153,9 @@ sudo -u nginx-user XDG_RUNTIME_DIR=/run/user/$(id -u nginx-user) systemctl --use
 
 ### User Isolation
 - Each service runs as a dedicated unprivileged user
-- No service has sudo access (remove the sudoers.d file if created)
+- No service has sudo access
 - Containers are rootless (run in user namespaces)
-- Files shared via group permissions, not world-readable
+- Each service owns only its own files, no cross-service file access
 
 ### Network Security
 - All services use Tailscale network (not exposed to internet)
@@ -186,7 +185,7 @@ sudo -u dnsmasq-user XDG_RUNTIME_DIR=/run/user/$(id -u dnsmasq-user) journalctl 
 ### SSL certificate errors
 ```bash
 # Regenerate certificate
-sudo rm -rf /var/lib/llm-services/ssl/*
+sudo rm -rf /var/lib/nginx-proxy/ssl/*
 ./install-quadlets.sh  # Will regenerate on next run
 ```
 
