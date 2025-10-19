@@ -102,8 +102,8 @@ sudo chown -R nginx-user:nginx-user /var/lib/nginx-proxy
 sudo chmod 644 /var/lib/dnsmasq-llm/dnsmasq.conf
 sudo chown -R dnsmasq-user:dnsmasq-user /var/lib/dnsmasq-llm
 
-sudo chmod 644 /var/lib/opik/config/*
-sudo chmod 644 /var/lib/opik/clickhouse/config/*
+sudo find /var/lib/opik/config -type f -exec chmod 644 {} \;
+sudo find /var/lib/opik/clickhouse/config -type f -exec chmod 644 {} \;
 sudo chown -R opik-user:opik-user /var/lib/opik
 
 echo ""
