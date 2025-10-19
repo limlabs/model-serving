@@ -236,6 +236,14 @@ done
 echo "Cleaning up orphaned processes..."
 sudo pkill -9 webproc 2>/dev/null || true
 
+# Remove corrupted temp directories created by podman rm above
+# (podman rm may create temp dirs with wrong ownership when cleaning old containers with mismatched subuid)
+echo "Cleaning up corrupted temp directories..."
+for user in vllm-user webui-user; do
+    homedir=$(getent passwd $user | cut -d: -f6)
+    sudo rm -rf "$homedir/.local/share/containers/storage/overlay/tempdirs" 2>/dev/null || true
+done
+
 echo ""
 echo "Reloading systemd..."
 
@@ -263,11 +271,18 @@ for user in vllm-user webui-user; do
     fi
 done
 
+echo ""
+echo "Starting services..."
+
 # Start user-level services (rootless podman)
 for service_user in "vllm-user:vllm-qwen" "webui-user:open-webui"; do
     user="${service_user%:*}"
     service="${service_user#*:}"
     VLLM_UID=$(id -u $user)
+    homedir=$(getent passwd $user | cut -d: -f6)
+
+    # Fix ownership one more time right before starting (in case previous attempts failed)
+    sudo chown -R $user:$user "$homedir/.local" 2>/dev/null || true
 
     if sudo -u $user XDG_RUNTIME_DIR=/run/user/$VLLM_UID systemctl --user is-active --quiet $service.service 2>/dev/null; then
         echo "Restarting $service.service (as $user)..."
