@@ -6,7 +6,7 @@ Wants=network-online.target
 [Container]
 Image=docker.io/minio/minio:RELEASE.2025-03-12T18-04-18Z
 ContainerName=opik-minio
-Pod=opik
+Pod=opik.pod
 Volume=/var/lib/opik/minio:/data:Z
 Environment=MINIO_ROOT_USER=THAAIOSFODNN7EXAMPLE
 Environment=MINIO_ROOT_PASSWORD=LESlrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY

@@ -6,7 +6,7 @@ Wants=network-online.target
 [Container]
 Image=ghcr.io/comet-ml/opik/opik-python-backend:latest
 ContainerName=opik-python-backend
-Pod=opik
+Pod=opik.pod
 Environment=OPIK_VERSION=latest
 Environment=PYTHON_CODE_EXECUTOR_IMAGE_TAG=latest
 Environment=PYTHON_CODE_EXECUTOR_STRATEGY=process

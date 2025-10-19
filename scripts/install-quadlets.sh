@@ -232,14 +232,13 @@ for service_user in "vllm-user:vllm-qwen" "webui-user:open-webui"; do
     fi
 done
 
-# Stop Opik pod containers if running
-echo "Stopping Opik pod containers if running..."
+# Stop Opik containers if running
+echo "Stopping Opik containers if running..."
 OPIK_UID=$(id -u opik-user 2>/dev/null) || OPIK_UID=""
 if [ -n "$OPIK_UID" ]; then
     for container in frontend python-backend backend minio-init minio clickhouse zookeeper redis mysql; do
         sudo -u opik-user XDG_RUNTIME_DIR=/run/user/$OPIK_UID systemctl --user stop opik-$container.service 2>/dev/null || true
     done
-    sudo -u opik-user XDG_RUNTIME_DIR=/run/user/$OPIK_UID systemctl --user stop opik-pod.service 2>/dev/null || true
 fi
 
 # Stop system services if running
@@ -320,15 +319,12 @@ for service_user in "vllm-user:vllm-qwen" "webui-user:open-webui"; do
     fi
 done
 
-# Start Opik pod (requires starting all container services)
-echo "Starting Opik pod containers (as opik-user)..."
+# Start Opik containers (as opik-user)
+echo "Starting Opik containers (as opik-user)..."
 OPIK_UID=$(id -u opik-user)
 sudo chown -R opik-user:opik-user /var/lib/opik/.local 2>/dev/null || true
 
-# Start pod infrastructure first
-sudo -u opik-user XDG_RUNTIME_DIR=/run/user/$OPIK_UID systemctl --user start opik-pod.service || true
-
-# Start all Opik containers
+# Start all Opik containers (mysql creates the pod, others join it)
 for container in mysql redis zookeeper clickhouse minio minio-init backend python-backend frontend; do
     echo "  Starting opik-$container..."
     sudo -u opik-user XDG_RUNTIME_DIR=/run/user/$OPIK_UID systemctl --user start opik-$container.service || true

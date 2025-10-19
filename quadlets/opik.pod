@@ -5,9 +5,7 @@ Wants=network-online.target
 
 [Pod]
 PodName=opik
-# Expose frontend port to host
 PublishPort=5173:5173
-# Expose MinIO console (optional)
 PublishPort=9090:9090
 
 [Service]

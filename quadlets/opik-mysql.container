@@ -6,7 +6,7 @@ Wants=network-online.target
 [Container]
 Image=docker.io/library/mysql:8.4.2
 ContainerName=opik-mysql
-Pod=opik
+Pod=opik.pod
 Volume=/var/lib/opik/mysql:/var/lib/mysql:Z
 Environment=MYSQL_ROOT_PASSWORD=opik
 Environment=MYSQL_DATABASE=opik

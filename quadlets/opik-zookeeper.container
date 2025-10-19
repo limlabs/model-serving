@@ -6,7 +6,7 @@ Wants=network-online.target
 [Container]
 Image=docker.io/bitnami/zookeeper:3.9.3-debian-12-r16
 ContainerName=opik-zookeeper
-Pod=opik
+Pod=opik.pod
 Volume=/var/lib/opik/zookeeper:/bitnami/zookeeper:Z
 Environment=ZOO_MY_ID=1
 Environment=ZOO_SERVERS=opik-zookeeper=opik-zookeeper:2888:3888

@@ -6,7 +6,7 @@ Wants=network-online.target
 [Container]
 Image=ghcr.io/comet-ml/opik/opik-backend:latest
 ContainerName=opik-backend
-Pod=opik
+Pod=opik.pod
 Exec=bash -c "./run_db_migrations.sh && ./entrypoint.sh"
 Environment=DOCKER_BUILDKIT=1
 Environment=STATE_DB_PROTOCOL=jdbc:mysql://
