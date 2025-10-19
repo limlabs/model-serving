@@ -160,6 +160,11 @@ DIST_DIR="/var/lib/nginx-proxy/ssl/dist"
 
 if sudo test -f "$SSL_DIR/liminati.internal.crt" && sudo test -f "$SSL_DIR/liminati.internal.key"; then
     echo "SSL certificates already exist, skipping generation."
+    # Ensure cert is copied to dist directories
+    sudo cp "$SSL_DIR/liminati.internal.crt" "$DIST_DIR/liminati-ca.crt"
+    sudo cp "$SSL_DIR/liminati.internal.crt" /var/lib/nginx-proxy/dist/liminati-ca.crt
+    sudo chown nginx-user:nginx-user /var/lib/nginx-proxy/dist/liminati-ca.crt
+    sudo chmod 644 /var/lib/nginx-proxy/dist/liminati-ca.crt
 else
     CERT_DAYS=3650
 
