@@ -17,20 +17,27 @@ git pull
 
 echo ""
 echo "=== Copying updated configuration files ==="
+sudo cp "$REPO_ROOT/config/opik/nginx.conf" /var/lib/opik/config/
 sudo cp "$REPO_ROOT/config/opik/nginx_default_local.conf" /var/lib/opik/config/
+sudo cp "$REPO_ROOT/config/opik/fluent-bit.conf" /var/lib/opik/config/
+sudo chown opik-user:opik-user /var/lib/opik/config/nginx.conf
 sudo chown opik-user:opik-user /var/lib/opik/config/nginx_default_local.conf
+sudo chown opik-user:opik-user /var/lib/opik/config/fluent-bit.conf
 
 echo ""
 echo "=== Copying updated quadlet files ==="
 sudo cp "$REPO_ROOT/quadlets/opik-frontend.container" /var/lib/opik/.config/containers/systemd/
+sudo cp "$REPO_ROOT/quadlets/opik-zookeeper.container" /var/lib/opik/.config/containers/systemd/
 sudo chown opik-user:opik-user /var/lib/opik/.config/containers/systemd/opik-frontend.container
+sudo chown opik-user:opik-user /var/lib/opik/.config/containers/systemd/opik-zookeeper.container
 
 echo ""
 echo "=== Reloading systemd ==="
 sudo -u opik-user XDG_RUNTIME_DIR=/run/user/$(id -u opik-user) systemctl --user daemon-reload
 
 echo ""
-echo "=== Restarting opik-frontend ==="
+echo "=== Restarting opik-zookeeper and opik-frontend ==="
+sudo -u opik-user XDG_RUNTIME_DIR=/run/user/$(id -u opik-user) systemctl --user restart opik-zookeeper.service
 sudo -u opik-user XDG_RUNTIME_DIR=/run/user/$(id -u opik-user) systemctl --user restart opik-frontend.service
 
 echo ""

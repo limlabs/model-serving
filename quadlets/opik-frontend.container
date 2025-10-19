@@ -13,8 +13,7 @@ Environment=OPIK_VERSION=latest
 Environment=ENABLE_OTEL_LOG_EXPORT=false
 Environment=OTEL_COLLECTOR_HOST=otel-collector
 Environment=OTEL_COLLECTOR_PORT=4317
-PodmanArgs=--entrypoint nginx
-Exec=-g "daemon off;"
+Exec=nginx -g "daemon off;"
 
 [Service]
 Restart=always
