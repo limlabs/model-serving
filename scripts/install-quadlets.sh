@@ -68,7 +68,7 @@ sudo mkdir -p /var/lib/nginx-proxy/{conf.d,dist,ssl/dist}
 sudo mkdir -p /var/lib/dnsmasq-llm
 sudo mkdir -p /var/lib/vllm/.cache/huggingface
 sudo mkdir -p /var/lib/webui/data
-sudo mkdir -p /var/lib/opik/{mysql,clickhouse/{data,logs,config},zookeeper/datalog,minio,config}
+sudo mkdir -p /var/lib/opik/{mysql,clickhouse/{data,logs,config},zookeeper/datalog,minio,config,frontend-tmp}
 
 # Set ownership for each service's directories
 sudo chown -R nginx-user:nginx-user /var/lib/nginx-proxy
