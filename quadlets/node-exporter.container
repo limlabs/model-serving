@@ -1,0 +1,24 @@
+[Unit]
+Description=Prometheus Node Exporter
+After=network-online.target
+Wants=network-online.target
+
+[Container]
+Image=docker.io/prom/node-exporter:latest
+ContainerName=node-exporter
+# Use host network for access to system metrics
+Network=host
+# Mount system paths for metrics collection
+Volume=/proc:/host/proc:ro
+Volume=/sys:/host/sys:ro
+Volume=/:/rootfs:ro
+# Run with UID/GID mapping for rootless podman
+PodmanArgs=--userns=keep-id
+Exec=--path.procfs=/host/proc --path.sysfs=/host/sys --path.rootfs=/rootfs
+
+[Service]
+Restart=always
+TimeoutStartSec=60
+
+[Install]
+WantedBy=default.target

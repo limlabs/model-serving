@@ -1,0 +1,66 @@
+#!/bin/bash
+set -e
+
+echo "Setting up Grafana + Prometheus monitoring stack..."
+
+# Create necessary directories
+mkdir -p ~/model-serving/config/prometheus/data
+mkdir -p ~/model-serving/config/grafana/data
+
+# Set proper permissions for data directories
+chmod 755 ~/model-serving/config/prometheus/data
+chmod 755 ~/model-serving/config/grafana/data
+
+# Copy quadlet files to systemd user directory
+mkdir -p ~/.config/containers/systemd
+cp ~/model-serving/quadlets/prometheus.container ~/.config/containers/systemd/
+cp ~/model-serving/quadlets/grafana.container ~/.config/containers/systemd/
+cp ~/model-serving/quadlets/node-exporter.container ~/.config/containers/systemd/
+
+# Reload systemd daemon to pick up new quadlets
+systemctl --user daemon-reload
+
+# Enable and start services
+echo "Enabling monitoring services..."
+systemctl --user enable --now prometheus.service
+systemctl --user enable --now node-exporter.service
+systemctl --user enable --now grafana.service
+
+# Reload nginx to pick up Grafana configuration
+echo ""
+echo "Reloading nginx-proxy to enable grafana.liminati.internal..."
+if sudo systemctl reload nginx-proxy.service 2>/dev/null; then
+    echo "✓ Nginx reloaded successfully"
+else
+    echo "⚠ Could not reload nginx-proxy (you may need to do this manually)"
+    echo "  Run: sudo systemctl reload nginx-proxy.service"
+fi
+
+echo ""
+echo "Monitoring stack deployed successfully!"
+echo ""
+echo "Access URLs (via HTTPS/nginx-proxy):"
+echo "  Grafana: https://grafana.liminati.internal"
+echo ""
+echo "Access URLs (direct/localhost):"
+echo "  Prometheus: http://localhost:9090"
+echo "  Grafana:    http://localhost:3000"
+echo "  Node Exporter: http://localhost:9100/metrics"
+echo ""
+echo "Grafana default credentials:"
+echo "  Username: admin"
+echo "  Password: admin"
+echo ""
+echo "Next steps:"
+echo "1. Log into Grafana at https://grafana.liminati.internal"
+echo "2. Add Prometheus as a data source:"
+echo "   - Go to Configuration > Data Sources"
+echo "   - Click 'Add data source'"
+echo "   - Select 'Prometheus'"
+echo "   - Set URL to http://localhost:9090"
+echo "   - Click 'Save & Test'"
+echo "3. Import vLLM dashboard or create custom dashboards"
+echo ""
+echo "Note: Make sure grafana.liminati.internal resolves to this server"
+echo "      (should work automatically if using the dnsmasq setup)"
+echo ""

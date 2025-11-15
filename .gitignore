@@ -1,1 +1,5 @@
 .DS_Store
+
+# Monitoring data directories
+config/prometheus/data/
+config/grafana/data/

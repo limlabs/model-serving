@@ -1,0 +1,21 @@
+[Unit]
+Description=Prometheus Monitoring
+After=network-online.target
+Wants=network-online.target
+
+[Container]
+Image=docker.io/prom/prometheus:latest
+ContainerName=prometheus
+Volume=%h/model-serving/config/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+Volume=%h/model-serving/config/prometheus/data:/prometheus
+# Use host network to access vllm metrics on localhost:8000
+Network=host
+# Run with UID/GID mapping for rootless podman
+PodmanArgs=--userns=keep-id
+
+[Service]
+Restart=always
+TimeoutStartSec=60
+
+[Install]
+WantedBy=default.target
