@@ -4,7 +4,7 @@ After=network-online.target
 Wants=network-online.target
 
 [Container]
-Image=ghcr.io/open-webui/open-webui:main
+Image=ghcr.io/open-webui/open-webui:v0.6.36
 ContainerName=open-webui
 PublishPort=3000:8080
 Volume=/var/lib/webui/data:/app/backend/data

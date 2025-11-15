@@ -10,7 +10,7 @@ Volume=/var/lib/vllm/.cache/huggingface:/root/.cache/huggingface
 AddDevice=nvidia.com/gpu=all
 PodmanArgs=--ipc=host --dns=8.8.8.8
 Network=host
-Exec=--model Qwen/Qwen3-0.6B
+Exec=--model Qwen/Qwen3-8B-FP8
 
 [Service]
 Restart=always
