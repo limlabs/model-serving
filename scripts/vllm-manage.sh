@@ -88,7 +88,7 @@ case "$1" in
         sudo sed -i "s|Description=vLLM OpenAI Server with .*|Description=vLLM OpenAI Server with $MODEL_DESC|" "$QUADLET_DEST"
 
         echo "Updated quadlet configuration:"
-        grep -E "Description=|Exec=" "$QUADLET_DEST"
+        sudo grep -E "Description=|Exec=" "$QUADLET_DEST"
 
         # Reload and restart
         run_as_vllm "systemctl --user daemon-reload"
