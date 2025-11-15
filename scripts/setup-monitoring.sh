@@ -42,6 +42,36 @@ systemctl --user is-active prometheus.service && echo "✓ Prometheus is running
 systemctl --user is-active node-exporter.service && echo "✓ Node Exporter is running" || echo "✗ Node Exporter failed to start"
 systemctl --user is-active grafana.service && echo "✓ Grafana is running" || echo "✗ Grafana failed to start"
 
+# Update dnsmasq configuration with grafana DNS record
+echo ""
+echo "Updating dnsmasq configuration..."
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(dirname "$SCRIPT_DIR")"
+
+# Copy updated dnsmasq config
+sudo cp "$REPO_ROOT/config/dnsmasq/dnsmasq.conf" /var/lib/dnsmasq-llm/
+
+# Detect Tailscale IP and update dnsmasq config
+if command -v tailscale &> /dev/null; then
+    HOST_IP=$(tailscale ip -4 2>/dev/null || hostname -I | grep -oE '100\.[0-9]+\.[0-9]+\.[0-9]+' | head -n1)
+else
+    HOST_IP=$(hostname -I | grep -oE '100\.[0-9]+\.[0-9]+\.[0-9]+' | head -n1)
+fi
+
+if [ -z "$HOST_IP" ]; then
+    HOST_IP=$(hostname -I | awk '{print $1}')
+fi
+
+sudo sed -i "s|192.168.0.1|$HOST_IP|g" /var/lib/dnsmasq-llm/dnsmasq.conf
+
+# Reload dnsmasq to pick up new DNS record
+if sudo systemctl reload dnsmasq.service 2>/dev/null; then
+    echo "✓ Dnsmasq reloaded successfully (grafana.liminati.internal now resolves)"
+else
+    echo "⚠ Could not reload dnsmasq (you may need to do this manually)"
+    echo "  Run: sudo systemctl reload dnsmasq.service"
+fi
+
 # Reload nginx to pick up Grafana configuration
 echo ""
 echo "Reloading nginx-proxy to enable grafana.liminati.internal..."
