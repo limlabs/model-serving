@@ -11,6 +11,12 @@ mkdir -p ~/model-serving/config/grafana/data
 chmod 755 ~/model-serving/config/prometheus/data
 chmod 755 ~/model-serving/config/grafana/data
 
+# Pull container images first to avoid timeout issues
+echo "Pulling container images..."
+podman pull docker.io/prom/prometheus:latest
+podman pull docker.io/grafana/grafana:latest
+podman pull docker.io/prom/node-exporter:latest
+
 # Copy quadlet files to systemd user directory
 mkdir -p ~/.config/containers/systemd
 cp ~/model-serving/quadlets/prometheus.container ~/.config/containers/systemd/
