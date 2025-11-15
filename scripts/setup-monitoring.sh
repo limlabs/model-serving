@@ -20,11 +20,21 @@ cp ~/model-serving/quadlets/node-exporter.container ~/.config/containers/systemd
 # Reload systemd daemon to pick up new quadlets
 systemctl --user daemon-reload
 
-# Enable and start services
-echo "Enabling monitoring services..."
-systemctl --user enable --now prometheus.service
-systemctl --user enable --now node-exporter.service
-systemctl --user enable --now grafana.service
+# Start services (quadlets auto-enable via WantedBy in .container files)
+echo "Starting monitoring services..."
+systemctl --user start prometheus.service
+systemctl --user start node-exporter.service
+systemctl --user start grafana.service
+
+# Wait a moment for services to initialize
+sleep 2
+
+# Check service status
+echo ""
+echo "Service status:"
+systemctl --user is-active prometheus.service && echo "✓ Prometheus is running" || echo "✗ Prometheus failed to start"
+systemctl --user is-active node-exporter.service && echo "✓ Node Exporter is running" || echo "✗ Node Exporter failed to start"
+systemctl --user is-active grafana.service && echo "✓ Grafana is running" || echo "✗ Grafana failed to start"
 
 # Reload nginx to pick up Grafana configuration
 echo ""
