@@ -38,9 +38,44 @@ sleep 2
 # Check service status
 echo ""
 echo "Service status:"
-systemctl --user is-active prometheus.service && echo "✓ Prometheus is running" || echo "✗ Prometheus failed to start"
-systemctl --user is-active node-exporter.service && echo "✓ Node Exporter is running" || echo "✗ Node Exporter failed to start"
-systemctl --user is-active grafana.service && echo "✓ Grafana is running" || echo "✗ Grafana failed to start"
+if systemctl --user is-active --quiet prometheus.service; then
+    echo "✓ Prometheus is running"
+else
+    echo "✗ Prometheus failed to start"
+    echo "  Logs:"
+    journalctl --user -u prometheus.service -n 20 --no-pager | sed 's/^/    /'
+fi
+
+if systemctl --user is-active --quiet node-exporter.service; then
+    echo "✓ Node Exporter is running"
+else
+    echo "✗ Node Exporter failed to start"
+    echo "  Logs:"
+    journalctl --user -u node-exporter.service -n 20 --no-pager | sed 's/^/    /'
+fi
+
+if systemctl --user is-active --quiet grafana.service; then
+    echo "✓ Grafana is running"
+else
+    echo "✗ Grafana failed to start"
+    echo "  Logs:"
+    journalctl --user -u grafana.service -n 20 --no-pager | sed 's/^/    /'
+    echo ""
+    echo "  Checking permissions on data directory..."
+    ls -la ~/model-serving/config/grafana/
+    echo ""
+    echo "  Attempting to fix permissions..."
+    chmod -R 755 ~/model-serving/config/grafana/data
+    chown -R $(id -u):$(id -g) ~/model-serving/config/grafana/data
+    echo "  Restarting Grafana..."
+    systemctl --user restart grafana.service
+    sleep 2
+    if systemctl --user is-active --quiet grafana.service; then
+        echo "  ✓ Grafana started successfully after permissions fix"
+    else
+        echo "  ✗ Grafana still failing. Check logs with: journalctl --user -u grafana.service -f"
+    fi
+fi
 
 # Update dnsmasq configuration with grafana DNS record
 echo ""
@@ -64,12 +99,12 @@ fi
 
 sudo sed -i "s|192.168.0.1|$HOST_IP|g" /var/lib/dnsmasq-llm/dnsmasq.conf
 
-# Reload dnsmasq to pick up new DNS record
-if sudo systemctl reload dnsmasq.service 2>/dev/null; then
-    echo "✓ Dnsmasq reloaded successfully (grafana.liminati.internal now resolves)"
+# Restart dnsmasq to pick up new DNS record (reload doesn't work for volume-mounted configs)
+if sudo systemctl restart dnsmasq.service 2>/dev/null; then
+    echo "✓ Dnsmasq restarted successfully (grafana.liminati.internal now resolves)"
 else
-    echo "⚠ Could not reload dnsmasq (you may need to do this manually)"
-    echo "  Run: sudo systemctl reload dnsmasq.service"
+    echo "⚠ Could not restart dnsmasq (you may need to do this manually)"
+    echo "  Run: sudo systemctl restart dnsmasq.service"
 fi
 
 # Reload nginx to pick up Grafana configuration
