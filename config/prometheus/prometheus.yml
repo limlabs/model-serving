@@ -12,7 +12,7 @@ scrape_configs:
   # Scrape Prometheus itself
   - job_name: 'prometheus'
     static_configs:
-      - targets: ['localhost:9090']
+      - targets: ['localhost:9091']
 
   # Scrape Node Exporter for system metrics
   - job_name: 'node'

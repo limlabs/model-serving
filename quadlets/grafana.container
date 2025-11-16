@@ -8,13 +8,12 @@ Requires=prometheus.service
 Image=docker.io/grafana/grafana:latest
 ContainerName=grafana
 Volume=%h/model-serving/config/grafana/data:/var/lib/grafana
-# Use host network to access Prometheus on localhost:9090
+Volume=%h/model-serving/config/grafana/provisioning:/etc/grafana/provisioning
+# Use host network to access Prometheus on localhost:9091
 Network=host
-# Run with UID/GID mapping for rootless podman
-PodmanArgs=--userns=keep-id
 Environment=GF_SECURITY_ADMIN_PASSWORD=admin
 Environment=GF_USERS_ALLOW_SIGN_UP=false
-Environment=GF_SERVER_HTTP_PORT=3000
+Environment=GF_SERVER_HTTP_PORT=3001
 Environment=GF_SERVER_DOMAIN=grafana.liminati.internal
 Environment=GF_SERVER_ROOT_URL=https://grafana.liminati.internal
 

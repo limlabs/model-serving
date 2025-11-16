@@ -10,8 +10,8 @@ Volume=%h/model-serving/config/prometheus/prometheus.yml:/etc/prometheus/prometh
 Volume=%h/model-serving/config/prometheus/data:/prometheus
 # Use host network to access vllm metrics on localhost:8000
 Network=host
-# Run with UID/GID mapping for rootless podman
-PodmanArgs=--userns=keep-id
+# Change port to 9091 to avoid conflict with existing service on 9090
+Exec=--config.file=/etc/prometheus/prometheus.yml --storage.tsdb.path=/prometheus --web.listen-address=:9091
 
 [Service]
 Restart=always

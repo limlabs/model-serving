@@ -6,10 +6,16 @@ echo "Setting up Grafana + Prometheus monitoring stack..."
 # Create necessary directories
 mkdir -p ~/model-serving/config/prometheus/data
 mkdir -p ~/model-serving/config/grafana/data
+mkdir -p ~/model-serving/config/grafana/provisioning/datasources
 
 # Set proper permissions for data directories
 chmod 755 ~/model-serving/config/prometheus/data
 chmod 755 ~/model-serving/config/grafana/data
+
+# Set ownership for data directories (Prometheus runs as UID 65534, Grafana as UID 472)
+echo "Setting data directory ownership..."
+podman unshare chown -R 65534:65534 ~/model-serving/config/prometheus/data
+podman unshare chown -R 472:472 ~/model-serving/config/grafana/data
 
 # Pull container images first to avoid timeout issues
 echo "Pulling container images..."
@@ -107,14 +113,22 @@ else
     echo "  Run: sudo systemctl restart dnsmasq.service"
 fi
 
-# Reload nginx to pick up Grafana configuration
+# Copy Grafana nginx config and restart nginx-proxy
 echo ""
+echo "Configuring nginx-proxy for grafana.liminati.internal..."
+if sudo cp "$REPO_ROOT/config/nginx/conf.d/grafana.conf" /var/lib/nginx-proxy/conf.d/ 2>/dev/null; then
+    echo "✓ Grafana nginx config copied"
+else
+    echo "⚠ Could not copy nginx config (you may need to do this manually)"
+    echo "  Run: sudo cp $REPO_ROOT/config/nginx/conf.d/grafana.conf /var/lib/nginx-proxy/conf.d/"
+fi
+
 echo "Reloading nginx-proxy to enable grafana.liminati.internal..."
-if sudo systemctl reload nginx-proxy.service 2>/dev/null; then
+if sudo podman exec nginx-proxy nginx -s reload 2>/dev/null; then
     echo "✓ Nginx reloaded successfully"
 else
     echo "⚠ Could not reload nginx-proxy (you may need to do this manually)"
-    echo "  Run: sudo systemctl reload nginx-proxy.service"
+    echo "  Run: sudo podman exec nginx-proxy nginx -s reload"
 fi
 
 echo ""
@@ -124,8 +138,8 @@ echo "Access URLs (via HTTPS/nginx-proxy):"
 echo "  Grafana: https://grafana.liminati.internal"
 echo ""
 echo "Access URLs (direct/localhost):"
-echo "  Prometheus: http://localhost:9090"
-echo "  Grafana:    http://localhost:3000"
+echo "  Prometheus: http://localhost:9091"
+echo "  Grafana:    http://localhost:3001"
 echo "  Node Exporter: http://localhost:9100/metrics"
 echo ""
 echo "Grafana default credentials:"
@@ -134,13 +148,13 @@ echo "  Password: admin"
 echo ""
 echo "Next steps:"
 echo "1. Log into Grafana at https://grafana.liminati.internal"
-echo "2. Add Prometheus as a data source:"
-echo "   - Go to Configuration > Data Sources"
-echo "   - Click 'Add data source'"
-echo "   - Select 'Prometheus'"
-echo "   - Set URL to http://localhost:9090"
-echo "   - Click 'Save & Test'"
-echo "3. Import vLLM dashboard or create custom dashboards"
+echo "   - Username: admin"
+echo "   - Password: admin (change on first login)"
+echo "2. Prometheus data source is already configured automatically!"
+echo "3. Import vLLM dashboard or create custom dashboards:"
+echo "   - Click '+' > Import"
+echo "   - Enter dashboard ID or upload JSON"
+echo "   - Select 'Prometheus' as the data source"
 echo ""
 echo "Note: Make sure grafana.liminati.internal resolves to this server"
 echo "      (should work automatically if using the dnsmasq setup)"
