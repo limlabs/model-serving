@@ -10,8 +10,10 @@ Pod=dagster.pod
 Volume=/home/austin/ycgraph:/opt/dagster/ycgraph:ro
 Volume=/var/lib/dagster/dagster_home:/opt/dagster/dagster_home
 Volume=/var/lib/dagster/ycgraph_data:/opt/dagster/data
-Environment=HOME=/root
+Volume=/var/lib/dagster/playwright_cache:/.cache/ms-playwright
+Environment=HOME=/
 Environment=PYTHONPATH=/opt/dagster/ycgraph
+Environment=PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/.cache/ms-playwright/chromium_headless_shell-1194/chrome-linux/headless_shell
 Environment=DAGSTER_POSTGRES_USER=dagster
 Environment=DAGSTER_POSTGRES_PASSWORD=dagster
 Environment=DAGSTER_POSTGRES_DB=dagster

@@ -57,12 +57,25 @@ ENV HOME=/root
 ENV PYTHONUNBUFFERED=1
 ENV PATH="/opt/dagster/.venv/bin:$PATH"
 
-# Create entrypoint script to fix permissions
+# Copy Playwright browsers to a temporary location for entrypoint use
+RUN cp -r /root/.cache/ms-playwright /tmp/playwright-browsers-backup
+
+# Create entrypoint script to initialize Playwright cache from backup
 RUN echo '#!/bin/bash' > /entrypoint.sh && \
-    echo '# Ensure Playwright browsers are accessible' >> /entrypoint.sh && \
-    echo 'find /root/.cache/ms-playwright -type f \( -name "chrome" -o -name "headless_shell" -o -name "*.so*" \) -exec chmod +x {} \; 2>/dev/null || true' >> /entrypoint.sh && \
+    echo 'set -e' >> /entrypoint.sh && \
+    echo '# Initialize Playwright cache if empty (volume mount scenario)' >> /entrypoint.sh && \
+    echo 'CACHE_DIR="${HOME}/.cache/ms-playwright"' >> /entrypoint.sh && \
+    echo 'if [ ! -f "${CACHE_DIR}/chromium_headless_shell-1194/INSTALLATION_COMPLETE" ]; then' >> /entrypoint.sh && \
+    echo '  echo "Initializing Playwright browsers from image..."' >> /entrypoint.sh && \
+    echo '  mkdir -p "${CACHE_DIR}"' >> /entrypoint.sh && \
+    echo '  cp -r /tmp/playwright-browsers-backup/* "${CACHE_DIR}/" 2>/dev/null || cp -r /root/.cache/ms-playwright/* "${CACHE_DIR}/"' >> /entrypoint.sh && \
+    echo '  chmod -R 755 "${CACHE_DIR}"' >> /entrypoint.sh && \
+    echo '  find "${CACHE_DIR}" -type f \( -name "chrome" -o -name "headless_shell" \) -exec chmod 755 {} \;' >> /entrypoint.sh && \
+    echo '  find "${CACHE_DIR}" -type f -name "*.so*" -exec chmod 755 {} \;' >> /entrypoint.sh && \
+    echo '  echo "Playwright browsers initialized at ${CACHE_DIR}"' >> /entrypoint.sh && \
+    echo 'fi' >> /entrypoint.sh && \
     echo 'exec "$@"' >> /entrypoint.sh && \
-    chmod +x /entrypoint.sh 
+    chmod +x /entrypoint.sh
 
 ENTRYPOINT ["/entrypoint.sh"]
 
