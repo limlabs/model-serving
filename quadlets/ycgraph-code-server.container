@@ -8,8 +8,24 @@ Image=localhost/ycgraph-code-server:latest
 ContainerName=ycgraph-code-server
 Pod=dagster.pod
 Volume=/home/austin/ycgraph:/opt/dagster/ycgraph:ro
+Volume=/var/lib/dagster/dagster_home:/opt/dagster/dagster_home
+Volume=/var/lib/dagster/ycgraph_data:/opt/dagster/data
+Volume=/var/lib/dagster/playwright_cache:/root/.cache/ms-playwright
 Environment=HOME=/root
 Environment=PYTHONPATH=/opt/dagster/ycgraph
+Environment=DAGSTER_POSTGRES_USER=dagster
+Environment=DAGSTER_POSTGRES_PASSWORD=dagster
+Environment=DAGSTER_POSTGRES_DB=dagster
+Environment=DAGSTER_POSTGRES_HOSTNAME=localhost
+Environment=DAGSTER_POSTGRES_PORT=5432
+Environment=DAGSTER_HOME=/opt/dagster/dagster_home
+Environment=USE_S3=true
+Environment=YC_ASSETS_DIR=/opt/dagster/data/assets
+Environment=S3_BUCKET=ycgraph
+Environment=S3_REGION=hel1
+Environment=S3_ENDPOINT_URL=https://hel1.your-objectstorage.com
+Environment=HEADLESS=true
+EnvironmentFile=/var/lib/dagster/.config/environment.d/dagster-s3.conf
 Exec=dagster api grpc --host 0.0.0.0 --port 4000 --module-name yc_scraper.definitions
 
 [Service]

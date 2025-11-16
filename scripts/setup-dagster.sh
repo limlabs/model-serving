@@ -50,6 +50,8 @@ echo "Creating Dagster directories..."
 sudo mkdir -p $DAGSTER_HOME/postgres
 sudo mkdir -p $DAGSTER_HOME/dagster_home/{storage,logs,history}
 sudo mkdir -p $DAGSTER_HOME/code
+sudo mkdir -p $DAGSTER_HOME/ycgraph_data
+sudo mkdir -p $DAGSTER_HOME/playwright_cache
 
 # Set ownership
 sudo chown -R $DAGSTER_USER:$DAGSTER_USER $DAGSTER_HOME
