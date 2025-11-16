@@ -1,0 +1,21 @@
+[Unit]
+Description=NVIDIA DCGM Exporter for GPU Metrics
+After=network-online.target
+Wants=network-online.target
+
+[Container]
+Image=nvcr.io/nvidia/k8s/dcgm-exporter:3.3.5-3.4.0-ubuntu22.04
+ContainerName=dcgm-exporter
+# Use host network for easy access
+Network=host
+# Enable NVIDIA GPU support using CDI (Container Device Interface)
+AddDevice=nvidia.com/gpu=all
+Environment=DCGM_EXPORTER_LISTEN=:9400
+Environment=DCGM_EXPORTER_KUBERNETES=false
+
+[Service]
+Restart=always
+TimeoutStartSec=60
+
+[Install]
+WantedBy=default.target

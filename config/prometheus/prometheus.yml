@@ -1,5 +1,5 @@
 global:
-  scrape_interval: 15s
+  scrape_interval: 5s  # Scrape every 5 seconds (faster updates)
   evaluation_interval: 15s
 
 scrape_configs:
@@ -18,3 +18,8 @@ scrape_configs:
   - job_name: 'node'
     static_configs:
       - targets: ['localhost:9100']
+
+  # Scrape NVIDIA DCGM Exporter for GPU metrics
+  - job_name: 'gpu'
+    static_configs:
+      - targets: ['localhost:9400']

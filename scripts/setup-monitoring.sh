@@ -22,12 +22,14 @@ echo "Pulling container images..."
 podman pull docker.io/prom/prometheus:latest
 podman pull docker.io/grafana/grafana:latest
 podman pull docker.io/prom/node-exporter:latest
+podman pull nvcr.io/nvidia/k8s/dcgm-exporter:3.3.5-3.4.0-ubuntu22.04
 
 # Copy quadlet files to systemd user directory
 mkdir -p ~/.config/containers/systemd
 cp ~/model-serving/quadlets/prometheus.container ~/.config/containers/systemd/
 cp ~/model-serving/quadlets/grafana.container ~/.config/containers/systemd/
 cp ~/model-serving/quadlets/node-exporter.container ~/.config/containers/systemd/
+cp ~/model-serving/quadlets/dcgm-exporter.container ~/.config/containers/systemd/
 
 # Reload systemd daemon to pick up new quadlets
 systemctl --user daemon-reload
@@ -36,6 +38,7 @@ systemctl --user daemon-reload
 echo "Starting monitoring services..."
 systemctl --user start prometheus.service
 systemctl --user start node-exporter.service
+systemctl --user start dcgm-exporter.service
 systemctl --user start grafana.service
 
 # Wait a moment for services to initialize
@@ -58,6 +61,15 @@ else
     echo "✗ Node Exporter failed to start"
     echo "  Logs:"
     journalctl --user -u node-exporter.service -n 20 --no-pager | sed 's/^/    /'
+fi
+
+if systemctl --user is-active --quiet dcgm-exporter.service; then
+    echo "✓ DCGM Exporter is running (GPU metrics)"
+else
+    echo "✗ DCGM Exporter failed to start"
+    echo "  Note: This requires NVIDIA GPU and drivers"
+    echo "  Logs:"
+    journalctl --user -u dcgm-exporter.service -n 20 --no-pager | sed 's/^/    /'
 fi
 
 if systemctl --user is-active --quiet grafana.service; then
@@ -141,6 +153,7 @@ echo "Access URLs (direct/localhost):"
 echo "  Prometheus: http://localhost:9091"
 echo "  Grafana:    http://localhost:3001"
 echo "  Node Exporter: http://localhost:9100/metrics"
+echo "  DCGM Exporter (GPU): http://localhost:9400/metrics"
 echo ""
 echo "Grafana default credentials:"
 echo "  Username: admin"
