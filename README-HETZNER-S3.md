@@ -24,7 +24,7 @@ Use Hetzner's S3-compatible Object Storage with Dagster for cloud asset storage 
 
 ```bash
 cd scripts
-./setup-hetzner-s3.sh
+./setup-datalake.sh
 ```
 
 The script will:
@@ -470,7 +470,7 @@ Much cheaper than self-hosted MinIO (~€11/month) but with less control.
 ## Next Steps
 
 1. ✅ Create Object Storage project in Hetzner Console
-2. ✅ Run `./scripts/setup-hetzner-s3.sh`
+2. ✅ Run `./scripts/setup-datalake.sh`
 3. ✅ Install dependencies
 4. ✅ Update Dagster configuration
 5. ✅ Restart Dagster

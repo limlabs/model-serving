@@ -166,6 +166,123 @@ echo "✓ All services started"
 # Reload nginx and dnsmasq if they exist
 "$SCRIPT_DIR/reload-nginx-dnsmasq.sh"
 
+# Configure S3 integration
+echo ""
+echo "=========================================="
+echo "Configuring S3 Integration"
+echo "=========================================="
+echo ""
+
+ENV_FILE="$REPO_ROOT/config/dagster/dagster.env"
+if [ ! -f "$ENV_FILE" ]; then
+    echo "ERROR: S3 configuration not found at $ENV_FILE"
+    echo ""
+    echo "Please run ./setup-datalake.sh first to configure S3 storage"
+    echo "This will set up both S3 and Nessie catalog for the data lake."
+    exit 1
+fi
+
+echo "Found S3 configuration in $ENV_FILE"
+
+# Load S3 config
+source "$ENV_FILE"
+
+# Create systemd environment file
+SYSTEMD_ENV_DIR="$DAGSTER_HOME/.config/environment.d"
+sudo mkdir -p "$SYSTEMD_ENV_DIR"
+
+sudo tee "$SYSTEMD_ENV_DIR/dagster-s3.conf" > /dev/null << EOF
+DAGSTER_S3_ENDPOINT_URL=$DAGSTER_S3_ENDPOINT_URL
+DAGSTER_S3_BUCKET=$DAGSTER_S3_BUCKET
+DAGSTER_S3_REGION=$DAGSTER_S3_REGION
+AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID
+AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY
+EOF
+
+sudo chown -R $DAGSTER_USER:$DAGSTER_USER "$SYSTEMD_ENV_DIR"
+echo "✓ S3 environment configured"
+
+# Update quadlet files to use EnvironmentFile
+echo "Updating quadlet files for S3..."
+QUADLET_DIR="$DAGSTER_HOME/.config/containers/systemd"
+
+for file in dagster-webserver.container dagster-daemon.container; do
+    if [ -f "$QUADLET_DIR/$file" ]; then
+        # Remove old S3 env vars if they exist (hardcoded secrets)
+        sudo sed -i '/^Environment=DAGSTER_S3_/d' "$QUADLET_DIR/$file"
+        sudo sed -i '/^Environment=AWS_ACCESS_KEY_ID/d' "$QUADLET_DIR/$file"
+        sudo sed -i '/^Environment=AWS_SECRET_ACCESS_KEY/d' "$QUADLET_DIR/$file"
+        
+        # Add EnvironmentFile directive if not present
+        if ! sudo grep -q "^EnvironmentFile=.*dagster-s3.conf" "$QUADLET_DIR/$file"; then
+            sudo sed -i "/^Environment=DAGSTER_HOME=/a EnvironmentFile=-$SYSTEMD_ENV_DIR/dagster-s3.conf" "$QUADLET_DIR/$file"
+        fi
+        
+        echo "✓ Updated $file"
+    fi
+done
+
+# Reload systemd to pick up quadlet changes
+sudo -u $DAGSTER_USER XDG_RUNTIME_DIR=$DAGSTER_RUNTIME_DIR systemctl --user daemon-reload
+
+# Install dependencies in containers
+echo ""
+echo "Installing S3 dependencies in containers..."
+
+if sudo -u $DAGSTER_USER XDG_RUNTIME_DIR=$DAGSTER_RUNTIME_DIR podman ps --format "{{.Names}}" | grep -q dagster-webserver; then
+    echo "Installing in dagster-webserver..."
+    sudo -u $DAGSTER_USER XDG_RUNTIME_DIR=$DAGSTER_RUNTIME_DIR \
+        podman exec dagster-webserver pip install --quiet dagster-aws boto3
+    echo "✓ dagster-webserver"
+    
+    echo "Installing in dagster-daemon..."
+    sudo -u $DAGSTER_USER XDG_RUNTIME_DIR=$DAGSTER_RUNTIME_DIR \
+        podman exec dagster-daemon pip install --quiet dagster-aws boto3
+    echo "✓ dagster-daemon"
+else
+    echo "⚠ Containers not running - dependencies will be installed on next restart"
+fi
+
+# Copy example assets (only if they don't exist)
+if [ ! -f "$DAGSTER_HOME/code/example_s3_assets.py" ]; then
+    echo ""
+    echo "Copying example S3 assets template..."
+    if [ -f "$REPO_ROOT/config/dagster/example_s3_assets.py" ]; then
+        sudo cp "$REPO_ROOT/config/dagster/example_s3_assets.py" $DAGSTER_HOME/code/
+        sudo chown $DAGSTER_USER:$DAGSTER_USER $DAGSTER_HOME/code/example_s3_assets.py
+        echo "✓ Example template copied"
+    fi
+else
+    echo "✓ Example S3 assets already exist"
+fi
+
+# Update workspace.yaml to include example
+WORKSPACE_YAML="$DAGSTER_HOME/dagster_home/workspace.yaml"
+if [ -f "$WORKSPACE_YAML" ]; then
+    if ! sudo grep -q "example_s3_assets.py" "$WORKSPACE_YAML"; then
+        echo "Adding example_s3_assets.py to workspace..."
+        sudo tee -a "$WORKSPACE_YAML" > /dev/null << 'EOF'
+  - python_file:
+      relative_path: /opt/dagster/code/example_s3_assets.py
+      working_directory: /opt/dagster/code
+EOF
+        echo "✓ Workspace updated"
+    fi
+fi
+
+# Restart services to pick up new configuration
+echo ""
+echo "Restarting Dagster services..."
+sudo -u $DAGSTER_USER XDG_RUNTIME_DIR=$DAGSTER_RUNTIME_DIR systemctl --user restart dagster-webserver
+sudo -u $DAGSTER_USER XDG_RUNTIME_DIR=$DAGSTER_RUNTIME_DIR systemctl --user restart dagster-daemon
+echo "✓ Services restarted with S3 configuration"
+
+echo ""
+echo "✓ S3 integration complete!"
+echo "  Endpoint: $DAGSTER_S3_ENDPOINT_URL"
+echo "  Bucket:   $DAGSTER_S3_BUCKET"
+echo ""
+
 echo ""
 echo "=========================================="
 echo "Dagster Setup Complete!"

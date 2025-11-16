@@ -1,0 +1,11 @@
+[Unit]
+Description=Nessie Network for inter-service communication
+Documentation=https://docs.podman.io/en/latest/markdown/podman-systemd.unit.5.html
+
+[Network]
+NetworkName=nessie
+Driver=bridge
+Internal=false
+
+[Install]
+WantedBy=default.target

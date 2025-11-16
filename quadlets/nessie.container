@@ -1,0 +1,29 @@
+[Unit]
+Description=Nessie Catalog Server
+After=nessie-postgres.service nessie-network-network.service
+Wants=network-online.target
+Requires=nessie-postgres.service nessie-network-network.service
+
+[Container]
+Image=ghcr.io/projectnessie/nessie:latest
+ContainerName=nessie
+HostName=nessie
+Network=nessie-network.network
+PublishPort=19120:19120
+Environment=QUARKUS_DATASOURCE_JDBC_URL=jdbc:postgresql://nessie-postgres:5432/nessie
+Environment=QUARKUS_DATASOURCE_USERNAME=nessie
+Environment=QUARKUS_DATASOURCE_PASSWORD=nessie
+Environment=NESSIE_VERSION_STORE_TYPE=JDBC
+Environment=QUARKUS_HTTP_PORT=19120
+Environment=QUARKUS_HTTP_HOST=0.0.0.0
+HealthCmd=curl -f http://localhost:19120/api/v2/config || exit 1
+HealthInterval=15s
+HealthTimeout=5s
+HealthRetries=5
+
+[Service]
+Restart=always
+TimeoutStartSec=120
+
+[Install]
+WantedBy=default.target

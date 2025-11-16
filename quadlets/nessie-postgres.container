@@ -1,0 +1,27 @@
+[Unit]
+Description=PostgreSQL Database for Nessie
+After=nessie-network-network.service
+Wants=network-online.target
+Requires=nessie-network-network.service
+
+[Container]
+Image=docker.io/library/postgres:15
+ContainerName=nessie-postgres
+HostName=nessie-postgres
+Network=nessie-network.network
+Volume=/var/lib/nessie/postgres:/var/lib/postgresql/data
+Environment=POSTGRES_USER=nessie
+Environment=POSTGRES_PASSWORD=nessie
+Environment=POSTGRES_DB=nessie
+Environment=PGDATA=/var/lib/postgresql/data/pgdata
+HealthCmd=pg_isready -U nessie
+HealthInterval=10s
+HealthTimeout=5s
+HealthRetries=5
+
+[Service]
+Restart=always
+TimeoutStartSec=60
+
+[Install]
+WantedBy=default.target
