@@ -19,7 +19,7 @@ Environment=DAGSTER_POSTGRES_DB=dagster
 Environment=DAGSTER_POSTGRES_HOSTNAME=dagster-postgres
 Environment=DAGSTER_POSTGRES_PORT=5432
 Environment=DAGSTER_HOME=/opt/dagster/dagster_home
-EnvironmentFile=-/var/lib/dagster/.config/environment.d/dagster-s3.conf
+EnvironmentFile=/var/lib/dagster/.config/environment.d/dagster-s3.conf
 
 [Service]
 Restart=always
