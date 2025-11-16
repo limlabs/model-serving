@@ -10,7 +10,6 @@ Pod=dagster.pod
 Volume=/home/austin/ycgraph:/opt/dagster/ycgraph:ro
 Volume=/var/lib/dagster/dagster_home:/opt/dagster/dagster_home
 Volume=/var/lib/dagster/ycgraph_data:/opt/dagster/data
-Volume=/var/lib/dagster/playwright_cache:/root/.cache/ms-playwright
 Environment=HOME=/root
 Environment=PYTHONPATH=/opt/dagster/ycgraph
 Environment=DAGSTER_POSTGRES_USER=dagster

@@ -57,21 +57,12 @@ ENV HOME=/root
 ENV PYTHONUNBUFFERED=1
 ENV PATH="/opt/dagster/.venv/bin:$PATH"
 
-# Create entrypoint script to fix permissions and validate Playwright
+# Create entrypoint script to fix permissions
 RUN echo '#!/bin/bash' > /entrypoint.sh && \
-    echo 'set -e' >> /entrypoint.sh && \
     echo '# Ensure Playwright browsers are accessible' >> /entrypoint.sh && \
-    echo 'if [ ! -d /root/.cache/ms-playwright ]; then' >> /entrypoint.sh && \
-    echo '  echo "ERROR: Playwright cache directory not found!"' >> /entrypoint.sh && \
-    echo '  echo "Reinstalling Playwright browsers..."' >> /entrypoint.sh && \
-    echo '  /opt/dagster/.venv/bin/playwright install chromium chromium-headless-shell' >> /entrypoint.sh && \
-    echo 'fi' >> /entrypoint.sh && \
-    echo 'chmod -R +x /root/.cache/ms-playwright/*/chrome-linux/* 2>/dev/null || true' >> /entrypoint.sh && \
-    echo '# List Playwright installation for debugging' >> /entrypoint.sh && \
-    echo 'echo "Playwright browsers available:"' >> /entrypoint.sh && \
-    echo 'ls -lh /root/.cache/ms-playwright/ 2>/dev/null || echo "No Playwright cache found"' >> /entrypoint.sh && \
+    echo 'find /root/.cache/ms-playwright -type f \( -name "chrome" -o -name "headless_shell" -o -name "*.so*" \) -exec chmod +x {} \; 2>/dev/null || true' >> /entrypoint.sh && \
     echo 'exec "$@"' >> /entrypoint.sh && \
-    chmod +x /entrypoint.sh
+    chmod +x /entrypoint.sh 
 
 ENTRYPOINT ["/entrypoint.sh"]
 
