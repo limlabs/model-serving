@@ -1,21 +1,19 @@
 [Unit]
 Description=Dagster Daemon - Schedules and Sensors
-After=dagster-postgres.service dagster-network-network.service
-Wants=network-online.target
-Requires=dagster-postgres.service dagster-network-network.service
+After=dagster-pod.service dagster-postgres.service
+Requires=dagster-pod.service dagster-postgres.service
 
 [Container]
 Image=docker.io/dagster/dagster-celery-k8s:latest
 ContainerName=dagster-daemon
-HostName=dagster-daemon
-Network=dagster-network.network
+Pod=dagster.pod
 Volume=/var/lib/dagster/dagster_home:/opt/dagster/dagster_home
 Volume=/var/lib/dagster/code:/opt/dagster/code:ro
 Exec=dagster-daemon run -w /opt/dagster/dagster_home/workspace.yaml
 Environment=DAGSTER_POSTGRES_USER=dagster
 Environment=DAGSTER_POSTGRES_PASSWORD=dagster
 Environment=DAGSTER_POSTGRES_DB=dagster
-Environment=DAGSTER_POSTGRES_HOSTNAME=dagster-postgres
+Environment=DAGSTER_POSTGRES_HOSTNAME=localhost
 Environment=DAGSTER_POSTGRES_PORT=5432
 Environment=DAGSTER_HOME=/opt/dagster/dagster_home
 EnvironmentFile=/var/lib/dagster/.config/environment.d/dagster-s3.conf

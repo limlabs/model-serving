@@ -116,7 +116,7 @@ SYSTEMD_DIR="$DAGSTER_HOME/.config/containers/systemd"
 sudo mkdir -p "$SYSTEMD_DIR"
 
 # Copy quadlet files
-sudo cp "$REPO_ROOT/quadlets/dagster-network.network" "$SYSTEMD_DIR/"
+sudo cp "$REPO_ROOT/quadlets/dagster.pod" "$SYSTEMD_DIR/"
 sudo cp "$REPO_ROOT/quadlets/dagster-postgres.container" "$SYSTEMD_DIR/"
 sudo cp "$REPO_ROOT/quadlets/dagster-daemon.container" "$SYSTEMD_DIR/"
 sudo cp "$REPO_ROOT/quadlets/dagster-webserver.container" "$SYSTEMD_DIR/"
@@ -140,12 +140,20 @@ if [ ! -d "$DAGSTER_RUNTIME_DIR" ]; then
     sudo chmod 700 "$DAGSTER_RUNTIME_DIR"
 fi
 
+# Clean up postgres data if it exists (to avoid permission issues)
+if [ -d "$DAGSTER_HOME/postgres/pgdata" ]; then
+    echo "Cleaning up existing postgres data..."
+    sudo rm -rf "$DAGSTER_HOME/postgres/pgdata"
+    sudo mkdir -p "$DAGSTER_HOME/postgres"
+    sudo chown -R $DAGSTER_USER:$DAGSTER_USER "$DAGSTER_HOME/postgres"
+fi
+
 # Reload systemd for the user
 sudo -u $DAGSTER_USER XDG_RUNTIME_DIR=$DAGSTER_RUNTIME_DIR systemctl --user daemon-reload
 
-# Start services in order
-echo "Starting dagster-network..."
-sudo -u $DAGSTER_USER XDG_RUNTIME_DIR=$DAGSTER_RUNTIME_DIR systemctl --user start dagster-network-network.service
+# Start services in order (pod first, then containers)
+echo "Starting dagster pod..."
+sudo -u $DAGSTER_USER XDG_RUNTIME_DIR=$DAGSTER_RUNTIME_DIR systemctl --user start dagster-pod.service
 
 echo "Starting dagster-postgres..."
 sudo -u $DAGSTER_USER XDG_RUNTIME_DIR=$DAGSTER_RUNTIME_DIR systemctl --user start dagster-postgres.service
@@ -155,10 +163,22 @@ echo "Waiting for PostgreSQL to be ready..."
 sleep 10
 
 echo "Starting dagster-daemon..."
-sudo -u $DAGSTER_USER XDG_RUNTIME_DIR=$DAGSTER_RUNTIME_DIR systemctl --user start dagster-daemon.service
+if ! sudo -u $DAGSTER_USER XDG_RUNTIME_DIR=$DAGSTER_RUNTIME_DIR systemctl --user start dagster-daemon.service; then
+    echo ""
+    echo "❌ dagster-daemon failed to start. Checking logs..."
+    sleep 2
+    sudo -u $DAGSTER_USER XDG_RUNTIME_DIR=$DAGSTER_RUNTIME_DIR podman logs dagster-daemon 2>&1 | tail -20 || echo "No logs available"
+    exit 1
+fi
 
 echo "Starting dagster-webserver..."
-sudo -u $DAGSTER_USER XDG_RUNTIME_DIR=$DAGSTER_RUNTIME_DIR systemctl --user start dagster-webserver.service
+if ! sudo -u $DAGSTER_USER XDG_RUNTIME_DIR=$DAGSTER_RUNTIME_DIR systemctl --user start dagster-webserver.service; then
+    echo ""
+    echo "❌ dagster-webserver failed to start. Checking logs..."
+    sleep 2
+    sudo -u $DAGSTER_USER XDG_RUNTIME_DIR=$DAGSTER_RUNTIME_DIR podman logs dagster-webserver 2>&1 | tail -20 || echo "No logs available"
+    exit 1
+fi
 
 echo ""
 echo "✓ All services started"
@@ -229,53 +249,21 @@ sudo -u $DAGSTER_USER XDG_RUNTIME_DIR=$DAGSTER_RUNTIME_DIR systemctl --user daem
 echo ""
 echo "Installing S3 dependencies in containers..."
 
-if sudo -u $DAGSTER_USER XDG_RUNTIME_DIR=$DAGSTER_RUNTIME_DIR podman ps --format "{{.Names}}" | grep -q dagster-webserver; then
+if sudo -u $DAGSTER_USER bash -c "cd /tmp && XDG_RUNTIME_DIR=$DAGSTER_RUNTIME_DIR podman ps --format '{{.Names}}'" | grep -q dagster-webserver; then
     echo "Installing in dagster-webserver..."
-    sudo -u $DAGSTER_USER XDG_RUNTIME_DIR=$DAGSTER_RUNTIME_DIR \
-        podman exec dagster-webserver pip install --quiet dagster-aws boto3
+    sudo -u $DAGSTER_USER bash -c "cd /tmp && XDG_RUNTIME_DIR=$DAGSTER_RUNTIME_DIR podman exec dagster-webserver pip install --quiet dagster-aws boto3"
     echo "✓ dagster-webserver"
     
     echo "Installing in dagster-daemon..."
-    sudo -u $DAGSTER_USER XDG_RUNTIME_DIR=$DAGSTER_RUNTIME_DIR \
-        podman exec dagster-daemon pip install --quiet dagster-aws boto3
+    sudo -u $DAGSTER_USER bash -c "cd /tmp && XDG_RUNTIME_DIR=$DAGSTER_RUNTIME_DIR podman exec dagster-daemon pip install --quiet dagster-aws boto3"
     echo "✓ dagster-daemon"
 else
     echo "⚠ Containers not running - dependencies will be installed on next restart"
 fi
 
-# Copy example assets (only if they don't exist)
-if [ ! -f "$DAGSTER_HOME/code/example_s3_assets.py" ]; then
-    echo ""
-    echo "Copying example S3 assets template..."
-    if [ -f "$REPO_ROOT/config/dagster/example_s3_assets.py" ]; then
-        sudo cp "$REPO_ROOT/config/dagster/example_s3_assets.py" $DAGSTER_HOME/code/
-        sudo chown $DAGSTER_USER:$DAGSTER_USER $DAGSTER_HOME/code/example_s3_assets.py
-        echo "✓ Example template copied"
-    fi
-else
-    echo "✓ Example S3 assets already exist"
-fi
-
-# Update workspace.yaml to include example
-WORKSPACE_YAML="$DAGSTER_HOME/dagster_home/workspace.yaml"
-if [ -f "$WORKSPACE_YAML" ]; then
-    if ! sudo grep -q "example_s3_assets.py" "$WORKSPACE_YAML"; then
-        echo "Adding example_s3_assets.py to workspace..."
-        sudo tee -a "$WORKSPACE_YAML" > /dev/null << 'EOF'
-  - python_file:
-      relative_path: /opt/dagster/code/example_s3_assets.py
-      working_directory: /opt/dagster/code
-EOF
-        echo "✓ Workspace updated"
-    fi
-fi
-
-# Restart services to pick up new configuration
-echo ""
-echo "Restarting Dagster services..."
-sudo -u $DAGSTER_USER XDG_RUNTIME_DIR=$DAGSTER_RUNTIME_DIR systemctl --user restart dagster-webserver
-sudo -u $DAGSTER_USER XDG_RUNTIME_DIR=$DAGSTER_RUNTIME_DIR systemctl --user restart dagster-daemon
-echo "✓ Services restarted with S3 configuration"
+# Setup code locations using dedicated script
+# This will build the ycgraph Docker image and configure all code locations
+"$SCRIPT_DIR/setup-dagster-code-locations.sh" all
 
 echo ""
 echo "✓ S3 integration complete!"
@@ -292,6 +280,11 @@ echo "Access Dagster UI at:"
 echo "  - Local: http://localhost:3002"
 echo "  - HTTPS: https://dagster.liminati.internal (via nginx)"
 echo ""
+echo "Code locations configured:"
+echo "  - ycgraph: $DAGSTER_HOME/code/ycgraph"
+echo "  - example_pipeline.py: $DAGSTER_HOME/code/"
+echo "  - example_s3_assets.py: $DAGSTER_HOME/code/"
+echo ""
 echo "Useful commands:"
 echo ""
 echo "Check service status:"
@@ -305,6 +298,12 @@ echo "  sudo -u $DAGSTER_USER XDG_RUNTIME_DIR=/run/user/\$(id -u $DAGSTER_USER) 
 echo ""
 echo "Stop all services:"
 echo "  sudo -u $DAGSTER_USER XDG_RUNTIME_DIR=/run/user/\$(id -u $DAGSTER_USER) systemctl --user stop dagster-webserver dagster-daemon dagster-postgres dagster-network"
+echo ""
+echo "Manage code locations:"
+echo "  $SCRIPT_DIR/setup-dagster-code-locations.sh list           # List current locations"
+echo "  $SCRIPT_DIR/setup-dagster-code-locations.sh ycgraph        # Update ycgraph"
+echo "  $SCRIPT_DIR/setup-dagster-code-locations.sh example-s3     # Setup example S3 assets"
+echo "  $SCRIPT_DIR/setup-dagster-code-locations.sh all            # Setup all locations"
 echo ""
 echo "Add your Dagster code to: $DAGSTER_HOME/code/"
 echo "Update workspace.yaml to reference your code locations"

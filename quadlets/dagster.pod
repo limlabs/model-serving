@@ -1,0 +1,17 @@
+[Unit]
+Description=Dagster Pod - Data Orchestration Platform
+After=network-online.target
+Wants=network-online.target
+
+[Pod]
+PodName=dagster
+PublishPort=3002:3000
+PublishPort=5432:5432
+PodmanArgs=--userns=keep-id
+
+[Service]
+Restart=always
+TimeoutStartSec=60
+
+[Install]
+WantedBy=default.target

@@ -1,0 +1,20 @@
+[Unit]
+Description=YCGraph Code Server - Python 3.12
+After=dagster-pod.service
+Requires=dagster-pod.service
+
+[Container]
+Image=localhost/ycgraph-code-server:latest
+ContainerName=ycgraph-code-server
+Pod=dagster.pod
+Volume=/home/austin/ycgraph:/opt/dagster/ycgraph:ro
+Environment=HOME=/root
+Environment=PYTHONPATH=/opt/dagster/ycgraph
+Exec=dagster api grpc --host 0.0.0.0 --port 4000 --module-name yc_scraper.definitions
+
+[Service]
+Restart=always
+TimeoutStartSec=120
+
+[Install]
+WantedBy=default.target

@@ -1,14 +1,12 @@
 [Unit]
 Description=PostgreSQL Database for Dagster
-After=dagster-network-network.service
-Wants=network-online.target
-Requires=dagster-network-network.service
+After=dagster-pod.service
+Requires=dagster-pod.service
 
 [Container]
 Image=docker.io/library/postgres:15
 ContainerName=dagster-postgres
-HostName=dagster-postgres
-Network=dagster-network.network
+Pod=dagster.pod
 Volume=/var/lib/dagster/postgres:/var/lib/postgresql/data
 Environment=POSTGRES_USER=dagster
 Environment=POSTGRES_PASSWORD=dagster
