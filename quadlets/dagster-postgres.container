@@ -1,0 +1,27 @@
+[Unit]
+Description=PostgreSQL Database for Dagster
+After=dagster-network-network.service
+Wants=network-online.target
+Requires=dagster-network-network.service
+
+[Container]
+Image=docker.io/library/postgres:15
+ContainerName=dagster-postgres
+HostName=dagster-postgres
+Network=dagster-network.network
+Volume=/var/lib/dagster/postgres:/var/lib/postgresql/data
+Environment=POSTGRES_USER=dagster
+Environment=POSTGRES_PASSWORD=dagster
+Environment=POSTGRES_DB=dagster
+Environment=PGDATA=/var/lib/postgresql/data/pgdata
+HealthCmd=pg_isready -U dagster
+HealthInterval=10s
+HealthTimeout=5s
+HealthRetries=5
+
+[Service]
+Restart=always
+TimeoutStartSec=60
+
+[Install]
+WantedBy=default.target

@@ -18,6 +18,7 @@ Secure, multi-user architecture for running vLLM with nginx reverse proxy, Open 
 | Open WebUI | `webui-user` | 3000 | Web interface for vLLM |
 | Nginx | `nginx-user` | 80, 443, 8081 | Reverse proxy with SSL |
 | DNSmasq | `dnsmasq-user` | 53, 5380 | DNS server for `*.liminati.internal` |
+| Dagster | `dagster-user` | 3002 | Data orchestration platform |
 
 ### Directory Structure
 
@@ -131,17 +132,24 @@ sudo -u nginx-user XDG_RUNTIME_DIR=/run/user/$(id -u nginx-user) systemctl --use
 - `generate-ssl-cert.sh` - Generate SSL certificates (called by installer)
 - `install-client.sh` - Client-side installer for DNS and SSL trust
 - `vllm-manage.sh` - Management utility for vLLM service
+- `setup-dagster.sh` - Setup script for Dagster orchestration
+- `dagster-manage.sh` - Management utility for Dagster services
 
 ### Quadlets
 - `quadlets/vllm-qwen.container` - vLLM service definition
 - `quadlets/open-webui.container` - Open WebUI service definition
 - `quadlets/nginx-proxy.container` - Nginx reverse proxy definition
 - `quadlets/dnsmasq.container` - DNSmasq DNS server definition
+- `quadlets/dagster-*.container` - Dagster orchestration services
+- `quadlets/dagster-network.network` - Dagster network definition
 
 ### Configs
 - `config/nginx/nginx.conf` - Main nginx configuration
 - `config/nginx/conf.d/*.conf` - Virtual host configurations
 - `config/dnsmasq/dnsmasq.conf` - DNSmasq configuration
+- `config/dagster/dagster.yaml` - Dagster configuration
+- `config/dagster/workspace.yaml` - Dagster workspace definition
+- `config/dagster/example_pipeline.py` - Example Dagster pipeline
 
 ## Security Notes
 
@@ -188,6 +196,12 @@ sudo -u dnsmasq-user XDG_RUNTIME_DIR=/run/user/$(id -u dnsmasq-user) journalctl 
 sudo rm -rf /var/lib/nginx-proxy/ssl/*
 ./install-quadlets.sh  # Will regenerate on next run
 ```
+
+## Additional Services
+
+- **Dagster**: [README-DAGSTER.md](README-DAGSTER.md) - Data orchestration ([S3 storage](README-HETZNER-S3.md))
+- **Monitoring**: [README-MONITORING.md](README-MONITORING.md) - Prometheus/Grafana
+- **Open WebUI**: [README-OPENWEBUI.md](README-OPENWEBUI.md) - Chat interface
 
 ## License
 

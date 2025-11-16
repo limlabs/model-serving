@@ -117,15 +117,7 @@ fi
 
 sudo sed -i "s|192.168.0.1|$HOST_IP|g" /var/lib/dnsmasq-llm/dnsmasq.conf
 
-# Restart dnsmasq to pick up new DNS record (reload doesn't work for volume-mounted configs)
-if sudo systemctl restart dnsmasq.service 2>/dev/null; then
-    echo "✓ Dnsmasq restarted successfully (grafana.liminati.internal now resolves)"
-else
-    echo "⚠ Could not restart dnsmasq (you may need to do this manually)"
-    echo "  Run: sudo systemctl restart dnsmasq.service"
-fi
-
-# Copy Grafana nginx config and restart nginx-proxy
+# Copy Grafana nginx config
 echo ""
 echo "Configuring nginx-proxy for grafana.liminati.internal..."
 if sudo cp "$REPO_ROOT/config/nginx/conf.d/grafana.conf" /var/lib/nginx-proxy/conf.d/ 2>/dev/null; then
@@ -135,13 +127,9 @@ else
     echo "  Run: sudo cp $REPO_ROOT/config/nginx/conf.d/grafana.conf /var/lib/nginx-proxy/conf.d/"
 fi
 
-echo "Reloading nginx-proxy to enable grafana.liminati.internal..."
-if sudo podman exec nginx-proxy nginx -s reload 2>/dev/null; then
-    echo "✓ Nginx reloaded successfully"
-else
-    echo "⚠ Could not reload nginx-proxy (you may need to do this manually)"
-    echo "  Run: sudo podman exec nginx-proxy nginx -s reload"
-fi
+# Reload nginx and dnsmasq to apply changes
+echo ""
+"$SCRIPT_DIR/reload-nginx-dnsmasq.sh"
 
 echo ""
 echo "Monitoring stack deployed successfully!"

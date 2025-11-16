@@ -1,0 +1,2 @@
+# Python dependencies for example Dagster pipeline
+pandas>=2.0.0

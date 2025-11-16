@@ -1,5 +1,31 @@
 .DS_Store
 
+# SSL certificates
+*.pem
+*.key
+*.crt
+
+# Logs
+*.log
+
+# Terraform
+terraform/.terraform/
+terraform/.terraform.lock.hcl
+terraform/*.tfstate
+terraform/*.tfstate.*
+terraform/*.tfvars
+!terraform/*.tfvars.example
+terraform/crash.log
+terraform/override.tf
+terraform/override.tf.json
+terraform/*_override.tf
+terraform/*_override.tf.json
+
+# Environment files with secrets
+config/dagster/dagster.env
+*.env
+!*.env.example
+
 # Monitoring data directories
 config/prometheus/data/
 config/grafana/data/

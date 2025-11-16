@@ -1,0 +1,4 @@
+load_from:
+  - python_file:
+      relative_path: /opt/dagster/code/example_pipeline.py
+      working_directory: /opt/dagster/code
