@@ -8,6 +8,7 @@ Image=docker.io/minio/minio:RELEASE.2025-03-12T18-04-18Z
 ContainerName=minio
 HostName=minio
 Network=opik-network.network
+PublishPort=9000:9000
 PublishPort=9090:9090
 Volume=/var/lib/opik/minio:/data:Z
 Environment=MINIO_ROOT_USER=THAAIOSFODNN7EXAMPLE
